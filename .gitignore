@@ -1,0 +1,26 @@
+# Local credentials and environment settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies, local tools and generated output
+node_modules/
+.supabase/
+supabase/.temp/
+supabase/.branches/
+.vscode/
+.idea/
+coverage/
+test-results/
+playwright-report/
+*.log
+__pycache__/
+.DS_Store
+Thumbs.db
+
+# Local exports and backups
+backups/
+exports/
+*.dump

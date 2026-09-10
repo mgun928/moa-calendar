@@ -1,0 +1,52 @@
+.topbar-actions{display:flex;gap:18px;align-items:center}.theme-toggle{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #e3ddd2;border-radius:7px;padding:8px 11px;background:#f5f1e9;color:#75634e;font-size:12px;white-space:nowrap}.theme-toggle>span:first-child{font-size:16px;line-height:1}.login-theme{position:absolute;right:24px;top:20px;z-index:3}
+:root[data-theme="dark"]{color-scheme:dark;--orange:#e28b5e;--muted:#b3a99b;--line:#423c33;color:#ede5d8;background:#201e1b}
+[data-theme="dark"] :is(.sidebar,.brand){background:#27241f;border-color:var(--line)}
+[data-theme="dark"] :is(.topbar,.calendar-panel,.panel,.group-card,.group-list-card,.memory-card,dialog,.group-context-menu){background:#282520;border-color:var(--line);color:#ede5d8}
+[data-theme="dark"] :is(h1,h2,.wordmark,.topbar strong,.group-card-title>strong){color:#eee5d7}
+[data-theme="dark"] :is(.nav-item,.sidebar-caption,.nav-label,.side-note p,.side-note>span:last-child,.profile small,.topbar,.eyebrow,.greeting p:last-child,.subtle,.summary-item p,.summary-item strong small,.agenda-time,.agenda-detail small,.calendar-footer,.month-view,.filter,.legend-item,.small-label,.page-footer,.group-card small,.group-card-description,.group-card-meta,.group-next small,.group-next>span,.group-local-note,.dialog-intro,.optional,.invite-disclosure,.memory-copy>small,.memory-period,.memory-caption,.photo-upload small,.edit-color-label,.brand-description,.brand-footer,.text-button,.remember,.signup,footer){color:#b9ad9d}
+[data-theme="dark"] :is(.summary,.hobby-panel,.side-note,.calendar-panel .weekdays,.calendar-week .day.other){background:#24221e}
+[data-theme="dark"] .calendar-panel .weekdays{color:#bbae98}
+[data-theme="dark"] .calendar-week .day.other{color:#908777}
+[data-theme="dark"] :is(.nav-item.active,.filter.active,.calendar-week .day.selected){background:#473225;color:#f1b58c;border-color:#795137}
+[data-theme="dark"] .primary,[data-theme="dark"] .is-today .day-number{background:#bc592f;color:#fff9f2}
+[data-theme="dark"] .primary:hover{background:#cc683e}
+[data-theme="dark"] :is(.theme-toggle,.outline,.add-inline,.hobby-info button,.group-tag,.group-more,.member-badge,.count,.avatar){background:#383026;border-color:#67523d;color:#e4bf98}
+[data-theme="dark"] :is(.profile,.member-row,.invite-row,.summary-item+.summary-item,.group-next){border-color:var(--line)}
+[data-theme="dark"] .summary-icon{background:#4d3425;color:#efa978}
+[data-theme="dark"] .summary-item:nth-child(2) .summary-icon{background:#343c2b;color:#b0c58b}
+[data-theme="dark"] .summary-item:nth-child(3) .summary-icon{background:#3f3047;color:#c6a5d7}
+[data-theme="dark"] :is(.event-chip.personal,.span-event.personal){background:#d8794e;color:#241b16;border-color:#f3aa80}
+[data-theme="dark"] :is(.event-chip.hobby,.span-event.hobby){background:#b398c6;color:#241b2c;border-color:#dac3eb}
+[data-theme="dark"] :is(.event-chip.group,.span-event.group,.group-card .group-symbol,.group-list-card .group-symbol){background:color-mix(in srgb,var(--group-color,#81945f) 22%,#24211e);color:#f0e7db}
+[data-theme="dark"] .progress{background:#4b4135}[data-theme="dark"] .progress i{background:#c69a68}
+[data-theme="dark"] :is(.create-group-card,.photo-upload){background:#312a22;border-color:#80613f;color:#d3aa7c}
+[data-theme="dark"] .create-group-card strong{color:#edc49b}
+[data-theme="dark"] .create-group-card small{color:#bdab95}
+[data-theme="dark"] .create-plus{background:#4d3827;color:#e8ac76}
+[data-theme="dark"] :is(.group-list-card:hover,.group-context-menu button:hover,.group-context-menu button:focus-visible){background:#3b3026;border-color:#876342}
+[data-theme="dark"] :is(dialog input,dialog select,dialog textarea,input[type=email],input[type=password],input[type=text],.social){background:#211f1b;color:#e9dfcf;border-color:#5a4b3d}
+[data-theme="dark"] input::placeholder,[data-theme="dark"] textarea::placeholder{color:#aa9a84}
+[data-theme="dark"] :is(.memory-cover,.memory-photo>button:first-child){background:#3c3023;color:#d0b18a}
+[data-theme="dark"] :is(.memory-action,.delete-button,#context-delete,.required){color:#efa27c}
+[data-theme="dark"] :is(.form-error,#notice){background:#4a2d23;color:#ffc19e;border-color:#785039}
+[data-theme="dark"] dialog::backdrop{background:#080706ad}
+[data-theme="dark"] .color-swatch{border-color:#282520}
+[data-theme="dark"] :is(.calendar-art,.welcome-icon){background:#30291f;border-color:#594a36}
+[data-theme="dark"] :is(.calendar-note,.divider:before,.divider:after){border-color:#594a36}
+[data-theme="dark"] .social:hover{background:#382f25}
+[data-theme="dark"] .signup button{color:#eab48d}
+@media(max-width:640px){.topbar-actions{gap:8px}.theme-toggle{padding:6px 9px;font-size:11px}.login-theme{top:25px;right:22px}}
+
+/* Opaque, high-contrast event labels in both calendar themes. */
+:is(.event-chip,.span-event) { font-weight: 600; }
+:root:not([data-theme="dark"]) :is(.event-chip.personal,.span-event.personal) {
+  background: #be542c; color: #ffffff; border-color: #8f381a;
+}
+:root:not([data-theme="dark"]) :is(.event-chip.hobby,.span-event.hobby) {
+  background: #795488; color: #ffffff; border-color: #573760;
+}
+:root :is(.event-chip.group,.span-event.group) {
+  background: color-mix(in srgb, var(--group-color,#81945f) 65%, white);
+  color: #201c18; border-color: var(--group-color,#81945f);
+}
+:is(.event-chip,.span-event) .chip-group-name { color: inherit; opacity: 1; }

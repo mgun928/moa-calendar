@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#faf9f6"><title>모아 — 내 정보</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+  <link rel="stylesheet" href="profile.css"><link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script><script type="module" src="profile.js"></script>
+</head>
+<body>
+  <header><a class="wordmark" href="dashboard.html">moa<span>.</span></a><button type="button" class="theme-toggle" aria-label="다크모드" aria-pressed="false"><span aria-hidden="true">☾</span><span class="theme-label">다크모드</span></button></header>
+  <main>
+    <a class="back" href="dashboard.html">← 나의 공간으로</a>
+    <p class="eyebrow">MY ACCOUNT</p><h1>내 정보</h1><p class="intro">모아에서 사용하는 나의 정보를 관리해요.</p>
+    <p id="loading" role="status">계정을 확인하고 있어요…</p>
+    <div id="account" hidden>
+      <section class="account-card">
+        <form id="nickname-form"><div><h2>닉네임</h2><p>모아에서 나를 보여주는 이름이에요.</p></div><div class="fields"><label for="nickname">닉네임</label><input id="nickname" autocomplete="nickname" required placeholder="2~20자"><button class="outline" type="submit">닉네임 저장</button><p role="status"></p></div></form>
+        <form id="email-form"><div><h2>이메일</h2><p>로그인과 인증 메일을 받는 주소예요.</p></div><div class="fields"><label for="email">이메일 주소</label><input id="email" type="email" autocomplete="email" required><p class="hint">변경 시 기존 주소와 새 주소로 온 인증 메일을 확인해 주세요.</p><button class="outline" type="submit">이메일 변경</button><p role="status"></p></div></form>
+        <form id="password-form"><div><h2>비밀번호</h2><p>현재 비밀번호는 표시되지 않아요.<br>새 비밀번호로 변경할 수 있어요.</p></div><div class="fields"><label for="current-password">현재 비밀번호</label><input id="current-password" type="password" autocomplete="current-password" required><label for="new-password">새 비밀번호</label><input id="new-password" type="password" autocomplete="new-password" minlength="8" placeholder="8자 이상" required><label for="confirm-password">새 비밀번호 확인</label><input id="confirm-password" type="password" autocomplete="new-password" required><button class="outline" type="submit">비밀번호 변경</button><p role="status"></p></div></form>
+      </section>
+      <div class="account-footer"><button id="logout" class="quiet" type="button">로그아웃</button><button id="delete-account" class="quiet" type="button">계정 탈퇴</button></div>
+    </div>
+  </main>
+</body>
+</html>

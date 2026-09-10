@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf9f6"><meta name="description" content="개인 일정부터 함께하는 약속, 나를 위한 취미까지. 모아에서 하루를 정리하세요.">
+  <title>모아 — 나의 하루</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+  <link rel="stylesheet" href="dashboard.css"><script type="module" src="dashboard-auth.js"></script>
+  <link rel="stylesheet" href="theme.css">
+  <script src="theme.js"></script>
+</head>
+<body style="visibility:hidden"><noscript>모아를 사용하려면 JavaScript를 켜 주세요.</noscript>
+  <aside class="sidebar">
+    <a class="wordmark" href="dashboard.html" aria-label="모아 홈">moa<span>.</span></a>
+    <p class="sidebar-caption">나의 일상을 모으는 곳</p>
+    <nav aria-label="주 메뉴">
+      <button class="nav-item active" data-view="all"><span aria-hidden="true">▦</span>모아보기</button>
+      <p class="nav-label">MY SPACE</p>
+      <button class="nav-item" data-view="personal"><span aria-hidden="true">□</span>개인 캘린더</button>
+      <button class="nav-item" data-view="group"><span aria-hidden="true">♧</span>그룹 캘린더</button>
+      <button class="nav-item" data-view="hobby"><span aria-hidden="true">❀</span>취미 관리</button>
+    </nav>
+    <div class="side-note"><span class="little-flower" aria-hidden="true">✳</span><p>바쁜 하루에도,<br>나를 위한 작은 여백.</p><span>오늘도 나다운 하루를 모아보세요.</span></div>
+    <div class="profile-menu">
+      <button class="profile" id="profile-toggle" type="button" aria-expanded="false" aria-controls="profile-options"><span class="avatar">M</span><span><strong>나의 모아</strong><small>계정 메뉴</small></span><span aria-hidden="true">⌃</span></button>
+      <div id="profile-options" class="profile-options" hidden><a href="profile.html">내 정보 <span aria-hidden="true">↗</span></a><button type="button" id="profile-logout">로그아웃</button><p id="profile-menu-error" role="alert" hidden></p></div>
+    </div>
+  </aside>
+  <main>
+    <header class="topbar"><span>나의 공간 <span class="slash">/</span> <strong id="breadcrumb">모아보기</strong></span><div class="topbar-actions"><span class="demo-label">일정은 내 계정에 저장돼요</span><button type="button" class="theme-toggle" aria-label="다크모드" aria-pressed="false"><span aria-hidden="true">☾</span> <span class="theme-label">다크모드</span></button></div></header>
+    <section class="workspace">
+      <div class="greeting"><div><p class="eyebrow">YOUR DAYS, IN ONE PLACE</p><h1 id="page-title">오늘도, 나다운 하루를 모아.</h1><p id="page-description">소중한 약속과 나를 위한 시간, 한곳에서 가볍게 정리해요.</p></div><div class="greeting-actions"><button class="primary" id="add-event">＋ 일정 추가</button></div></div>
+      <section id="group-hub" hidden aria-label="내 그룹">
+        <button id="create-group" class="create-group-card"><span class="create-plus" aria-hidden="true">＋</span><span><strong>새로운 그룹 만들기</strong><small>함께할 사람을 초대하고, 우리만의 일정을 모아보세요.</small></span><span class="create-arrow" aria-hidden="true">↗</span></button>
+        <div class="group-list-heading"><div><h2>내 그룹 <span id="group-total" class="count"></span></h2><p class="subtle">함께하는 사람들, 함께 쌓이는 하루.</p></div><span class="small-label">OUR LITTLE CIRCLES</span></div>
+        <div id="group-list" class="group-list"></div>
+        <p class="group-local-note">체험 공간이에요. 그룹과 초대 대상은 이 브라우저에만 저장되며, 실제 초대는 발송되지 않아요.</p>
+      </section>
+      <div id="group-detail-bar" class="group-detail-bar" hidden><button id="back-groups" class="outline">← 내 그룹 목록</button><span id="group-detail-description"></span><label class="edit-color-label">그룹 색상<input id="edit-group-color" type="color" aria-label="현재 그룹 색상 변경"></label><button id="manage-members" class="outline">구성원 · 초대 대상</button></div>
+      <div class="summary" id="summary"></div>
+      <div class="content-grid">
+        <section class="calendar-panel" aria-label="월간 캘린더">
+          <div class="calendar-heading"><div class="month-control"><h2 id="month-title"></h2><button class="icon-button" id="prev-month" aria-label="이전 달">‹</button><button class="icon-button" id="next-month" aria-label="다음 달">›</button><button class="outline" id="today">오늘</button></div><span class="month-view">월간 보기</span></div>
+          <div class="calendar-filters" aria-label="일정 필터"><button class="filter active" data-filter="all">전체</button><button class="filter" data-filter="personal"><i class="dot personal"></i>개인</button><button class="filter" data-filter="group"><i class="dot group"></i>그룹</button><button class="filter" data-filter="hobby"><i class="dot hobby"></i>취미</button></div>
+          <div id="group-legend" class="group-legend" aria-label="그룹별 일정 색상" hidden></div>
+          <div class="weekdays"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+          <div id="calendar" class="calendar"></div>
+          <div class="calendar-footer"><span><i class="tiny-ring"></i>날짜를 선택해 하루의 일정을 확인하세요</span><span id="month-count"></span></div>
+        </section>
+        <aside class="right-column">
+          <section class="panel agenda-panel"><div class="section-heading"><h2 id="agenda-title">오늘의 일정</h2><span id="agenda-count" class="count"></span></div><p id="selected-date" class="subtle"></p><div id="agenda"></div><button class="add-inline" id="add-selected">＋ 이 날에 일정 추가</button></section>
+          <section class="panel hobby-panel"><div class="section-heading"><h2>이번 주, 나를 위한 시간</h2><span aria-hidden="true">✳</span></div><p class="subtle">작은 꾸준함이 쌓이고 있어요.</p><div id="hobbies"></div></section>
+        </aside>
+      </div>
+      <section id="memory-section" class="memory-section" hidden><div class="section-heading"><div><p class="eyebrow">DAYS BECOME MEMORIES</p><h2>함께한 날, 오래 남을 순간</h2><p class="subtle">지나간 약속에 사진을 더해 우리의 추억으로 남겨요.</p></div><span id="memory-count" class="count"></span></div><p id="memory-status" class="subtle" role="status"></p><div id="memory-cards" class="memory-cards"></div></section>
+      <section class="groups-section"><div class="section-heading"><div><h2>함께 모으는 하루</h2><p class="subtle">내 그룹의 다음 약속을 확인해요.</p></div><span class="small-label">MY GROUPS</span></div><div id="groups" class="groups"></div></section>
+      <div class="page-footer"><span>작은 계획이 모여, 더 나은 일상이 되도록.</span><span>© 2026 moa.</span></div>
+    </section>
+  </main>
+  <dialog id="event-dialog"><form id="event-form"><div class="section-heading"><h2 id="dialog-title">새 일정</h2><button type="button" class="icon-button" id="close-dialog" aria-label="닫기">×</button></div><label>일정 이름<input name="title" required maxlength="60" placeholder="어떤 하루를 모아볼까요?"></label><div class="form-row"><label>시작일<input name="date" type="date" required></label><label>종료일<input name="endDate" type="date" required></label></div><label class="all-day-toggle"><input name="allDay" type="checkbox">종일 일정</label><div id="event-times" class="form-row"><label>시작 시간<input name="time" type="time" required value="09:00"></label><label>종료 시간<input name="endTime" type="time" required value="10:00"></label></div><p id="event-error" class="form-error" role="alert" hidden></p><label>캘린더<select name="type"><option value="personal">개인 캘린더</option><option value="group">그룹 캘린더</option><option value="hobby">취미 활동</option></select></label><label id="group-field" hidden>그룹<select name="group"><option>주말 산책 모임</option><option>차곡차곡 독서회</option><option>우리의 작은 팀</option></select></label><label>메모<input name="note" maxlength="100" placeholder="장소나 기억할 내용을 적어주세요"></label><button id="event-memory" type="button" class="add-inline" hidden>사진과 추억 남기기 →</button><div class="dialog-actions"><button type="button" class="delete-button" id="delete-event" hidden>일정 삭제</button><button type="submit" class="primary">저장하기</button></div></form></dialog>
+  <dialog id="group-dialog" aria-labelledby="group-dialog-title">
+    <form id="group-form">
+      <div class="section-heading"><div><p class="eyebrow">A LITTLE MORE TOGETHER</p><h2 id="group-dialog-title">우리의 새로운 공간</h2></div><button type="button" class="icon-button" data-close="group-dialog" aria-label="닫기">×</button></div>
+      <p class="dialog-intro">작은 모임부터 시작해 보세요.<br>우리의 약속을 담을 캘린더가 만들어져요.</p>
+      <label>그룹 이름 <span class="required">필수</span><input name="groupName" required maxlength="30" placeholder="예: 토요일 아침 러닝 모임"></label>
+      <label>한 줄 소개 <span class="optional">선택</span><input name="description" maxlength="100" placeholder="어떤 시간을 함께하고 싶나요?"></label>
+      <fieldset class="color-picker"><legend>그룹 색상</legend><label><input type="radio" name="color" aria-label="세이지" value="sage" checked><span class="color-swatch sage" aria-label="세이지"></span></label><label><input type="radio" name="color" aria-label="테라코타" value="clay"><span class="color-swatch clay" aria-label="테라코타"></span></label><label><input type="radio" name="color" aria-label="라벤더" value="lavender"><span class="color-swatch lavender" aria-label="라벤더"></span></label><label><input type="radio" name="color" aria-label="블루" value="blue"><span class="color-swatch blue" aria-label="블루"></span></label><label class="custom-color-choice"><input id="custom-color-radio" type="radio" name="color" value="custom" aria-label="직접 고른 색 사용"><span>직접 선택</span></label><input id="custom-group-color" name="customColor" type="color" value="#638fa9" aria-label="원하는 그룹 색상 선택"></fieldset>
+      <div id="creation-invites"><label for="group-emails">초대할 이메일 <span class="optional">선택 · 나중에 추가 가능</span></label><textarea id="group-emails" name="emails" rows="3" placeholder="friend@example.com&#10;이메일 여러 개는 쉼표 또는 줄바꿈으로 구분해 주세요."></textarea>
+      <p class="invite-disclosure">가입과 이메일 인증을 마친 모아 계정에 초대를 보냅니다. 상대방의 받은 그룹 초대에 표시돼요.</p>
+      </div><p id="group-error" class="form-error" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" class="outline" data-close="group-dialog">취소</button><button id="save-group" class="primary" type="submit">그룹 만들기 →</button></div>
+    </form>
+  </dialog>
+  <dialog id="members-dialog" aria-labelledby="members-title"><div class="section-heading"><h2 id="members-title">구성원 · 초대 대상</h2><button type="button" class="icon-button" data-close="members-dialog" aria-label="닫기">×</button></div><p id="members-group-name" class="dialog-intro"></p><div id="member-list"></div><div class="invite-list-heading">보낸 초대</div><div id="invite-list"></div><form id="invite-form"><label for="more-emails">초대 대상 추가</label><textarea id="more-emails" name="emails" rows="2" required placeholder="이메일을 쉼표 또는 줄바꿈으로 구분해 주세요."></textarea><p class="invite-disclosure">상대방이 모아에서 초대를 수락하면 그룹 캘린더에 참여해요.</p><p id="invite-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button class="primary" type="submit">초대 보내기</button></div></form></dialog>
+  <div id="group-context-menu" class="group-context-menu" role="menu" aria-label="그룹 관리" hidden><button type="button" role="menuitem" id="context-edit">그룹 수정</button><button type="button" role="menuitem" id="context-delete">그룹 삭제</button></div>
+  <dialog id="delete-group-dialog" aria-labelledby="delete-group-title"><h2 id="delete-group-title">그룹을 삭제할까요?</h2><p id="delete-group-message" class="dialog-intro"></p><p class="invite-disclosure">삭제한 그룹과 일정은 복구할 수 없어요.</p><div class="dialog-actions"><button class="outline" type="button" data-close="delete-group-dialog" autofocus>취소</button><button class="primary" id="confirm-delete-group" type="button">그룹 삭제</button></div></dialog>
+  <dialog id="memory-dialog" aria-labelledby="memory-title"><form id="memory-form"><div class="section-heading"><div><p class="eyebrow">OUR SHARED MOMENTS</p><h2 id="memory-title">추억 남기기</h2></div><button type="button" class="icon-button" data-close="memory-dialog" aria-label="닫기">×</button></div><p id="memory-date" class="dialog-intro"></p><label class="photo-upload" for="memory-files"><span aria-hidden="true">＋</span><strong>함께한 순간을 사진으로 남겨요</strong><small>JPG · PNG · WebP · GIF / 사진당 8MB, 최대 12장</small><input id="memory-files" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label><p id="photo-status" class="subtle" role="status"></p><div id="memory-photos" class="memory-photos"></div><label for="memory-note">이 날의 한마디 <span class="optional">선택</span></label><textarea id="memory-note" maxlength="500" rows="3" placeholder="함께 웃었던 순간, 다음에도 기억하고 싶은 이야기…"></textarea><p class="invite-disclosure">사진과 기록은 이 브라우저에만 저장돼요. 브라우저 데이터를 지우면 사라지며, 다른 구성원에게는 아직 공유되지 않아요.</p><p id="memory-error" class="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="outline" data-close="memory-dialog">취소</button><button id="save-memory" type="submit" class="primary">추억 저장하기</button></div></form></dialog>
+  <dialog id="photo-viewer" aria-label="추억 사진 크게 보기"><button type="button" class="icon-button" data-close="photo-viewer" aria-label="닫기">×</button><img id="full-memory-photo" alt="선택한 추억 사진"></dialog>
+  <p id="toast" role="status" hidden></p>
+</body>
+</html>
+
+

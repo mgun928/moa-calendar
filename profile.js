@@ -1,3 +1,4 @@
+import {applyAccent} from './accent.js?v=dark-accent-6';
 import { authReady, authMessage } from './auth.js';
 import { setupDeletion } from './account-delete.js';
 
@@ -7,6 +8,15 @@ try {
   if (error || !data.user?.email_confirmed_at) location.replace('index.html');
   else {
     const user = data.user;
+    const accent=document.querySelector('#accent-color');
+    let savedAccent=applyAccent(user.user_metadata?.accent_color);
+    accent.value=savedAccent;
+    function previewAccent(){applyAccent(accent.value);}
+    accent.addEventListener('input',previewAccent);
+    for(const [name,color] of [['주황','#be542c'],['파랑','#3977b9'],['초록','#63845c'],['보라','#8768aa'],['분홍','#b75678'],['코랄','#b94f48'],['머스터드','#947124'],['올리브','#727c36'],['청록','#328477'],['틸','#287f86'],['인디고','#585ba6'],['베리','#963f70']]){
+      const button=document.createElement('button');button.type='button';button.setAttribute('aria-label',name);button.style.background=color;
+      button.onclick=()=>{accent.value=color;previewAccent();};document.querySelector('.accent-presets').append(button);
+    }
     const nickname = document.querySelector('#nickname');
     const email = document.querySelector('#email');
     nickname.value = typeof user.user_metadata?.nickname === 'string' ? user.user_metadata.nickname : '';
@@ -20,7 +30,7 @@ try {
       const form = document.getElementById(id);
       form.onsubmit = async event => {
         event.preventDefault();
-        const button = form.querySelector('button');
+        const button = form.querySelector('button[type=submit]');
         if (button.disabled) return;
         const status = form.querySelector('[role=status]');
         button.disabled = true;
@@ -31,6 +41,12 @@ try {
       };
     }
     const fail = localMessage => { throw { localMessage }; };
+    bind('accent-form',async()=>{
+      const chosen=accent.value;
+      const {error}=await client.auth.updateUser({data:{accent_color:chosen}});
+      if(error){applyAccent(savedAccent);throw error;}
+      savedAccent=chosen;applyAccent(chosen);return '색상을 저장했어요.';
+    });
     bind('nickname-form', async () => {
       const value = nickname.value.trim();
       if (Array.from(value).length < 2 || Array.from(value).length > 20) fail('닉네임은 2~20자로 입력해 주세요.');

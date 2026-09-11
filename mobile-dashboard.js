@@ -1,4 +1,4 @@
-import {setupEdgePanel} from './mobile-edge-panel.js';
+import {setupEdgePanel} from './mobile-edge-panel.js?v=edge-labels-1';
 
 export function setupMobileDashboard(){
  const media=matchMedia('(max-width:640px)');
@@ -11,6 +11,24 @@ export function setupMobileDashboard(){
  }
  const handle=edgeHandle('mobile-drawer-handle edge-handle','메뉴 열기');
  const bottomHandle=edgeHandle('bottom-drawer-handle edge-handle','일정과 친구 열기');
+ handle.innerHTML='<span class="edge-label"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 5h10M3 8h10M3 11h10"/></svg>메뉴</span>';
+ bottomHandle.innerHTML='<span class="edge-label"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 10 4-4 4 4"/></svg>일정 · 친구</span>';
+ function edgeTip(button,key,message){
+  const tip=document.createElement('span');tip.className='edge-tip';tip.textContent=message;tip.hidden=true;button.append(tip);
+  let timer;
+  const dismiss=()=>{clearTimeout(timer);tip.hidden=true;try{localStorage.setItem(key,'1');}catch{}};
+  const show=()=>{
+   if(!media.matches)return;
+   try{if(localStorage.getItem(key))return;}catch{}
+   tip.hidden=false;timer=setTimeout(dismiss,6500);
+  };
+  // Only teach the gesture when that handle is actually available on screen.
+  const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){show();observer.disconnect();}});
+  observer.observe(button);
+  return dismiss;
+ }
+ const dismissMenuTip=edgeTip(handle,'moa-menu-tip-v1','누르거나 아래로 밀어 메뉴를 열어보세요');
+ const dismissFriendsTip=edgeTip(bottomHandle,'moa-friends-tip-v1','누르거나 위로 밀어 일정과 친구를 만나보세요');
  const drawer=document.createElement('dialog');drawer.className='edge-panel edge-menu';drawer.id='mobile-navigation';
  drawer.setAttribute('aria-label','메뉴');
  const menuContent=document.createElement('div');menuContent.className='edge-menu-content';
@@ -40,10 +58,13 @@ export function setupMobileDashboard(){
   const heading=document.querySelector('#dialog-title');heading.tabIndex=-1;heading.focus({preventScroll:true});
  });
 
- quickAdd.addEventListener('submit',e=>{
+ let quickSaving=false;
+ quickAdd.addEventListener('submit',async e=>{
   e.preventDefault();const input=quickAdd.querySelector('input'),title=input.value.trim();
   if(!title){input.focus();return;}
-  if(window.moaQuickAddEvent(title)){input.value='';syncQuickButton();input.blur();}
+  if(quickSaving)return;quickSaving=true;quickButton.disabled=true;input.readOnly=true;
+  try{if(await window.moaQuickAddEvent(title)){input.value='';syncQuickButton();input.blur();}}
+  finally{quickSaving=false;quickButton.disabled=false;input.readOnly=false;}
  });
  function positionQuickAdd(){
   const vp=window.visualViewport;
@@ -124,8 +145,26 @@ export function setupMobileDashboard(){
  sheet.innerHTML='<div class="bottom-drawer-tabs"><button type="button" data-tool="agenda" aria-pressed="true">오늘의 일정</button><button type="button" data-tool="friends" aria-pressed="false">친구</button><button type="button" data-sheet-close aria-label="패널 닫기">×</button></div><div class="bottom-panels"></div>';
  sheet.prepend(bottomGrip);
  document.body.append(handle,bottomHandle,drawer,sheet);
+ const navStrip=document.createElement('div');navStrip.className='mobile-nav-strip';
+ const navPrev=document.createElement('button'),navNext=document.createElement('button');
+ for(const [button,direction,label] of [[navPrev,-1,'이전 메뉴 보기'],[navNext,1,'다음 메뉴 보기']]){
+  button.type='button';button.className='nav-scroll-arrow '+(direction<0?'prev':'next');
+  button.setAttribute('aria-label',label);button.innerHTML=`<svg viewBox="0 0 20 20" aria-hidden="true"><path d="${direction<0?'m12 5-5 5 5 5':'m8 5 5 5-5 5'}"/></svg>`;
+  button.hidden=true;
+  button.addEventListener('click',()=>nav.scrollBy({left:direction*Math.max(130,nav.clientWidth*.7),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'}));
+ }
+ navStrip.append(navPrev,navNext);
+ function updateNavArrows(){
+  const max=nav.scrollWidth-nav.clientWidth;
+  const hasPrev=media.matches&&nav.scrollLeft>2,hasNext=media.matches&&max-nav.scrollLeft>2;
+  navPrev.hidden=!hasPrev;navNext.hidden=!hasNext;
+  navStrip.classList.toggle('has-prev',hasPrev);navStrip.classList.toggle('has-next',hasNext);
+ }
+ nav.addEventListener('scroll',updateNavArrows,{passive:true});
+ new ResizeObserver(updateNavArrows).observe(nav);
+ document.fonts?.ready.then(updateNavArrows);
  const panels=[];
- const topPanel=setupEdgePanel({dialog:drawer,handle,grip:menuGrip,direction:1,beforeOpen:()=>panels.forEach(p=>p.close(true))});
+ const topPanel=setupEdgePanel({dialog:drawer,handle,grip:menuGrip,direction:1,onOpen:()=>{dismissMenuTip();requestAnimationFrame(updateNavArrows);},beforeOpen:()=>panels.forEach(p=>p.close(true))});
  panels.push(topPanel);
  function selectTool(tool){
   sheet.dataset.tool=tool;friends.hidden=tool!=='friends';
@@ -135,7 +174,7 @@ export function setupMobileDashboard(){
  sheet.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>selectTool(b.dataset.tool)));
  sheet.addEventListener('close',()=>{if(media.matches&&!sheet.open)friends.hidden=true;});
 
- const bottomPanel=setupEdgePanel({dialog:sheet,handle:bottomHandle,grip:bottomGrip,direction:-1,beforeOpen:()=>{
+ const bottomPanel=setupEdgePanel({dialog:sheet,handle:bottomHandle,grip:bottomGrip,direction:-1,onOpen:dismissFriendsTip,beforeOpen:()=>{
   panels.forEach(p=>p.close(true));selectTool('agenda');
  }});
  panels.push(bottomPanel);
@@ -145,7 +184,8 @@ export function setupMobileDashboard(){
  nav.addEventListener('pointerup',()=>{navDrag=null;});nav.addEventListener('pointercancel',()=>{navDrag=null;});
  drawer.addEventListener('click',event=>{
   if(Date.now()<navClickUntil&&nav.contains(event.target)){event.preventDefault();event.stopImmediatePropagation();return;}
-  if(event.target.closest('[data-view]'))topPanel.close(true);
+  const menuItem=event.target.closest('.nav-item[data-view]');
+  if(menuItem&&nav.contains(menuItem))topPanel.close(true);
  },true);
  // Close before an existing action opens its own event dialog.
  agenda.addEventListener('click',event=>{
@@ -196,7 +236,7 @@ export function setupMobileDashboard(){
    const safeBottom=parseFloat(getComputedStyle(bottomHandle).paddingBottom)||0;
    const viewport=window.visualViewport?.height||window.innerHeight;
    const quickHeight=media.matches?quickAdd.getBoundingClientRect().height:0;
-   const available=viewport-top-(media.matches?Math.max(8,safeBottom)+quickHeight+14:12);
+   const available=viewport-top-(media.matches?Math.max(8,safeBottom)+quickHeight+32:12);
    const height=media.matches?Math.max(0,available):Math.max(chrome+weeks*76+2,available);
    panel.style.setProperty('--mobile-calendar-height',height+'px');
    grid.style.setProperty('--calendar-height',height+'px');
@@ -208,7 +248,7 @@ export function setupMobileDashboard(){
  function arrange(){
   panels.forEach(p=>p.close(true));closeFriends();
   if(media.matches){
-   menuContent.append(nav,tools);
+   navStrip.prepend(nav);menuContent.append(navStrip,tools);
    contents.append(agenda,friends);friends.hidden=true;
    if(document.body.dataset.view==='friends')nav.querySelector('[data-view=all]').click();
    movable.forEach(node=>tools.append(node));
@@ -219,7 +259,7 @@ export function setupMobileDashboard(){
    workspace.insertBefore(summary,grid);
    document.querySelector('.topbar-actions').prepend(document.querySelector('.group-inbox'));
   }
-  window.renderMoaCalendar();layout();
+  window.renderMoaCalendar();layout();requestAnimationFrame(updateNavArrows);
  }
  window.layoutMobileCalendar=layout;
  media.addEventListener('change',arrange);

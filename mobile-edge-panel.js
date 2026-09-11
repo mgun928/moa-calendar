@@ -7,7 +7,7 @@ export function shouldOpen(startOpen, distance, height){
  return startOpen?distance>height-threshold:distance>=threshold;
 }
 
-export function setupEdgePanel({dialog,handle,grip,direction,beforeOpen}){
+export function setupEdgePanel({dialog,handle,grip,direction,beforeOpen,onOpen}){
  let progress=0,height=0,drag=null,timer=0,settled=false,suppressUntil=0;
  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
  handle.setAttribute('aria-haspopup','dialog');
@@ -37,6 +37,7 @@ export function setupEdgePanel({dialog,handle,grip,direction,beforeOpen}){
  function snap(open){
   clearTimeout(timer);settled=open;
   handle.setAttribute('aria-expanded',String(open));
+  if(open)onOpen?.();
   dialog.classList.remove('is-dragging');
   paint(open?height:0);
   if(!open){timer=setTimeout(finishClose,reduced.matches?0:220);}

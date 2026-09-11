@@ -1,3 +1,4 @@
+import {animateDisclosure} from './disclosure-motion.js';
 import {friendEventColor} from './friend-colors.js';
 import {setupFriendViewer} from './friend-viewer.js';
 export function setupFriends(client,userId){
@@ -47,10 +48,10 @@ export function setupFriends(client,userId){
  $('#friend-name-filter').addEventListener('input',e=>{nameQuery=e.target.value.trim().toLocaleLowerCase();renderFriends();});
  $('#friend-add-toggle').addEventListener('click',()=>{
   const open=$('#friend-add-toggle').getAttribute('aria-expanded')!=='true';
-  $('#friend-add-toggle').setAttribute('aria-expanded',String(open));$('#friend-add-panel').classList.toggle('is-open',open);
+  $('#friend-add-toggle').setAttribute('aria-expanded',String(open));animateDisclosure($('#friend-add-panel'),open,value=>$('#friend-add-panel').classList.toggle('is-open',value));
   if(open){$('#friend-search input').focus();void loadOwnCode();}
  });
- $('#friend-back').addEventListener('click',()=>{selected=null;generation++;clearCalendar();$('#friend-profile').close();$('#friend-list').scrollIntoView({block:'nearest'});});
+ $('#friend-back').addEventListener('click',async()=>{await viewer.close();selected=null;generation++;clearCalendar();});
  async function refresh(){
   if(stopped||navigating||viewer.isTransitioning())return;
   const version=++generation;

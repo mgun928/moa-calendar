@@ -1,12 +1,17 @@
+import {setupInboxMotion} from './disclosure-motion.js';
+import {setupSelectPicker} from './select-picker.js';
+import {setupDatePicker} from './date-picker.js';
+import {applyAccent} from './accent.js?v=dark-accent-6';
+import {setupTimePicker} from './time-picker.js?v=start-picker-1';
 import {confirmDelete} from './confirm-delete.js';
 window.moaConfirmDelete=confirmDelete;
-import { setupPersonalTools } from './personal-tools.js?v=full-profile-3-weekly-tools-2';
+import { setupPersonalTools } from './personal-tools.js?v=start-picker-1';
 import { setupFriends } from './friends.js?v=full-profile-3';
 import { authReady } from './auth.js';
 import { openCalendarStore } from './calendar-store.js';
 import { setupGroupSharing } from './group-sharing.js';
 import { setupProfileMenu } from './profile-menu.js';
-import { setupMobileDashboard } from './mobile-dashboard.js?v=quick-save-1';
+import { setupMobileDashboard } from './mobile-dashboard.js?v=edge-labels-1';
 
 
 async function loadScript(src) {
@@ -26,6 +31,7 @@ try {
     location.replace('index.html');
   } else {
     window.moaUserId = data.user.id;
+    applyAccent(data.user.user_metadata?.accent_color);
     client.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || (session && session.user.id !== window.moaUserId)) {
         window.moaCalendarStore?.stop();
@@ -67,7 +73,11 @@ try {
     await loadScript('dashboard.js?v=weekly-tools-1');
     window.moaFriends=setupFriends(client,data.user.id);
     setupPersonalTools();
+    setupTimePicker();
+    setupDatePicker();
+    setupSelectPicker();
     setupMobileDashboard();
+    setupInboxMotion();
     await loadScript('memories.js?v=friends-1');
 
 

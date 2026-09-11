@@ -7,9 +7,22 @@ export function setupFriendViewer(root,client,getId,changeMonth){
  dialog.querySelector('.friend-month').before(tabs);
  const table=document.createElement('div');table.className='friend-table';dialog.append(table);
  let version=0,gesture=null,ignoreClick=0,transitioning=false,tableSnapshot=null;
+ let closing=false;
+ async function closeProfile(){
+  if(closing||!dialog.open)return;
+  closing=true;let animation;
+  try{
+   if(dialog.animate&&!reduced()){
+    animation=dialog.animate([{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(16px)'}],{duration:180,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'});
+    await animation.finished.catch(()=>{});
+   }
+   dialog.close();
+  }finally{animation?.cancel();closing=false;}
+ }
+ dialog.addEventListener('cancel',event=>{event.preventDefault();void closeProfile();});
  const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  async function motion(element,from,to){
-  if(reduced()||!element.animate)return;
+  if(!element.animate||reduced())return;
   await element.animate([from,to],{duration:160,easing:'cubic-bezier(.22,.7,.25,1)'}).finished.catch(()=>{});
  }
  function page(value){dialog.dataset.page=value;tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.page===value)));}
@@ -65,7 +78,8 @@ export function setupFriendViewer(root,client,getId,changeMonth){
     await motion(calendar,{opacity:0,transform:`translateX(${-sign*28}px)`},{opacity:1,transform:'translateX(0)'});
    }finally{transitioning=false;}
   },
-  open(){page('calendar');if(!dialog.open)dialog.showModal();},
+  open(){page('calendar');if(!dialog.open){dialog.showModal();void motion(dialog,{opacity:0,transform:'translateY(20px)'},{opacity:1,transform:'translateY(0)'});}},
+  close:closeProfile,
   clear(){version++;tableSnapshot=null;table.replaceChildren();},
   async refresh(){
    if(!dialog.open)return;const request=++version,id=getId();

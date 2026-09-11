@@ -85,13 +85,26 @@ function render(){
   window.renderPersonalTools?.();
   document.querySelectorAll('[data-filter]').forEach(b=>{b.classList.toggle('active',b.dataset.filter===filter);b.setAttribute('aria-pressed',String(b.dataset.filter===filter));});
 }
+let viewTransitionFrame=0,viewAnimations=[];
+function animateViewChange(){
+  cancelAnimationFrame(viewTransitionFrame);
+  viewAnimations.forEach(animation=>animation.cancel());viewAnimations=[];
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  viewTransitionFrame=requestAnimationFrame(()=>{
+    const target=groupHub?$('#group-hub'):filter==='timetable'?$('#timetable-section'):filter==='memories'?$('#memory-section'):filter==='friends'?$('#friends-section'):$('.calendar-panel');
+    if(!target||target.hidden||!target.animate)return;
+    viewAnimations.push(target.animate([{opacity:.3,transform:'translateY(6px)'},{opacity:1,transform:'translateY(0)'}],{duration:220,easing:'cubic-bezier(.2,.65,.3,1)'}));
+  });
+}
 function setView(view,group='',showHub=view==='group'&&!group){
+  const changed=filter!==view||activeGroup!==group||groupHub!==showHub;
   filter=view;activeGroup=group;
   document.body.dataset.view=view;
   if($('#friends-section'))$('#friends-section').hidden=view!=='friends';
   if(view==='friends')window.moaFriends?.refresh();
   if($('#timetable-section'))$('#timetable-section').hidden=view!=='timetable';
   groupHub=showHub;
+  document.body.classList.toggle('group-calendar-open',view==='group'&&!!group&&!showHub);
   $('#group-hub').hidden=!groupHub;
   $('.content-grid').hidden=groupHub||['memories','friends','timetable'].includes(view);
   $('#summary').hidden=groupHub||!!group||['memories','friends','timetable'].includes(view);
@@ -106,6 +119,7 @@ function setView(view,group='',showHub=view==='group'&&!group){
   $('#breadcrumb').textContent=group?`그룹 캘린더 / ${groupLabel(group)}`:names[view];$('#page-title').textContent=group?groupLabel(group):titles[view];
   $('#page-description').textContent=group?'우리의 다음 약속을 달력에서 확인해요.':{all:'소중한 약속과 나를 위한 시간, 한곳에서 가볍게 정리해요.',personal:'작은 할 일부터 중요한 약속까지, 나의 시간을 정리해요.',group:'함께하는 약속을 모아 두고, 다음 만남을 준비해요.',hobby:'좋아하는 일을 계획하고, 오늘의 작은 실천을 기록해요.'}[view];
   document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.setAttribute('aria-current',b.dataset.view===view?'page':'false');});render();
+  if(changed)animateViewChange();
 }
 function openEvent(id=null){
   editing=id;const form=$('#event-form');form.reset();const event=events.find(e=>e.id===id);
@@ -205,6 +219,19 @@ $('#add-event').addEventListener('click',()=>openEvent());$('#add-selected').add
 $('#close-dialog').addEventListener('click',()=>$('#event-dialog').close());
 function syncVisibility(){const f=$('#event-form').elements;f.visibility.disabled=false;f.visibility.options[0].textContent=f.type.value==='group'?'나만 보기 (그룹원은 항상 표시)':'나만 보기';f.visibility.options[1].textContent=f.type.value==='group'?'보이게 하기 (친구에게 공개)':'친구에게 공개';}
 $('#event-form').elements.type.addEventListener('change',e=>{$('#group-field').hidden=e.target.value!=='group';syncVisibility();});
+function animateSavedEvent(item){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  // Wait for responsive calendar sizing after the input keyboard closes.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const blocks=Array.from(document.querySelectorAll('#calendar [data-span-event]')).filter(b=>b.dataset.spanEvent===item.id);
+    const badge=Array.from(document.querySelectorAll('#calendar [data-date]')).find(b=>b.dataset.date===item.date)?.querySelector('.more-events');
+    const targets=blocks.length?blocks:badge?[badge]:[];
+    targets.forEach((node,index)=>node.animate([
+      {opacity:.2,transform:'translateY(5px) scale(.97)'},
+      {opacity:1,transform:'translateY(0) scale(1)'}
+    ],{duration:280,delay:Math.min(index*30,90),easing:'cubic-bezier(.2,.7,.3,1)',fill:'backwards'}));
+  }));
+}
 $('#event-form').addEventListener('submit',async e=>{
   e.preventDefault();const f=e.currentTarget.elements;
   if(!f.title.value.trim()){f.title.setCustomValidity('일정 이름을 입력해 주세요.');f.title.reportValidity();return;}
@@ -218,14 +245,14 @@ $('#event-form').addEventListener('submit',async e=>{
   }
   if(target?.shared){
     const button=e.currentTarget.querySelector('[type="submit"]');if(button.disabled)return;button.disabled=true;
-    try{await window.moaSharing.mutate('event_save',{group_id:target.id,version:target.version,event:item});$('#event-dialog').close();notify('그룹 일정을 저장했어요.');}
+    try{await window.moaSharing.mutate('event_save',{group_id:target.id,version:target.version,event:item});$('#event-dialog').close();animateSavedEvent(item);notify('그룹 일정을 저장했어요.');}
     catch(error){showFormError('#event-error',error.message);}
     finally{button.disabled=false;}return;
   }
   if(editing)events=events.map(e=>e.id===editing?item:e);else events.push(item);
   selected=item.date;month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);
   if((filter!=='all'&&filter!==item.type)||(activeGroup&&activeGroup!==item.group)){filter='all';activeGroup='';}
-  const saved=save();setView(filter,activeGroup,false);$('#event-dialog').close();if(saved)notify('일정을 저장했어요.');
+  const saved=save();setView(filter,activeGroup,false);$('#event-dialog').close();animateSavedEvent(item);if(saved)notify('일정을 저장했어요.');
 });
 $('#event-form').elements.title.addEventListener('input',e=>e.target.setCustomValidity(''));
 $('#delete-event').addEventListener('click',async e=>{
@@ -253,8 +280,6 @@ function renderGroups(){
   const shown=userGroups.filter(g=>!activeGroup||g.id===activeGroup);
   $('#group-legend').hidden=groupHub || !['all','group'].includes(filter) || !shown.length;
   $('#group-legend').innerHTML=shown.map(g=>`<span class="legend-item" style="${groupColorStyle(g)}"><i aria-hidden="true"></i>${escapeHTML(g.name)}</span>`).join('');
-  $('#edit-group-color').disabled=!!(groupById(activeGroup)?.shared&&!groupById(activeGroup)?.owner);
-  if(activeGroup)$('#edit-group-color').value=groupPalette[groupById(activeGroup)?.color]||groupById(activeGroup)?.color||'#81945f';
   $('#group-total').textContent=userGroups.length;
   $('#group-list').innerHTML=userGroups.length?userGroups.map(g=>groupCard(g)).join(''):'<div class="group-empty"><span aria-hidden="true">♧</span><h2>아직 함께하는 그룹이 없어요.</h2><p>위의 그룹 만들기로 첫 모임을 시작해 보세요.</p></div>';
 }
@@ -334,11 +359,7 @@ $('#invite-list').addEventListener('click',async e=>{
 for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>document.getElementById(button.dataset.close).close());
 
 $('#custom-group-color').addEventListener('input',()=>{$('#custom-color-radio').checked=true;});
-$('#edit-group-color').addEventListener('change',async e=>{
- const group=groupById(activeGroup);if(!group||!validGroupColor(e.target.value))return;
- if(group.shared){try{await window.moaSharing.mutate('update',{group_id:group.id,version:group.version,info:{name:group.name,description:group.description,color:e.target.value}});}catch(error){notify(error.message);}return;}
- group.color=e.target.value;save();render();
-});
+
 
 let groupFriendSelection=new Set(),groupFriendPeople=[],groupFriendRequest=0;
 function renderGroupFriends(){
@@ -363,7 +384,7 @@ function openGroupEditor(id=null){
   editingGroup=id;const form=$('#group-form');form.reset();$('#group-error').hidden=true;
   const g=groupById(id);$('#group-dialog-title').textContent=g?'그룹 수정':'그룹 만들기';
   $('#save-group').textContent=g?'변경 사항 저장':'그룹 만들기 →';$('#creation-invites').hidden=!!g;
-  if(g){form.elements.groupName.value=g.name;form.elements.description.value=g.description;form.elements.color.value=Object.hasOwn(groupPalette,g.color)?g.color:'custom';form.elements.customColor.value=groupPalette[g.color]||g.color;}
+  if(g){form.elements.groupName.value=g.name;form.elements.description.value=g.description;form.elements.color.value=Array.from(form.querySelectorAll('input[name=color]')).some(input=>input.value===g.color)?g.color:'custom';form.elements.customColor.value=groupPalette[g.color]||g.color;}
   if(!g)void loadGroupFriends();
   $('#group-dialog').showModal();
 }
@@ -438,7 +459,7 @@ function renderMobileMonth(first,cells,matching){
       const singles=daily.filter(e=>eventEnd(e)===e.date).sort((a,b)=>Number(b.allDay)-Number(a.allDay)||a.time.localeCompare(b.time));
       const free=Array.from({length:limit},(_,lane)=>lane).filter(lane=>!occupied.has(lane));
       const visible=singles.slice(0,free.length),hidden=daily.length-occupied.size-visible.length;
-      html+=`<button class="day mobile-day ${hidden?'has-overflow':''} ${date.getMonth()!==month.getMonth()?'other':''} ${k===selected?'selected':''} ${k===key?'is-today':''}" style="grid-column:${i+1};grid-row:1 / -1" data-date="${k}" aria-pressed="${k===selected}" aria-label="${k}, 일정 ${daily.length}개"><span class="day-number">${date.getDate()}</span>${hidden?`<span class="more-events">+${hidden}개</span>`:''}</button>`;
+      html+=`<button class="day mobile-day ${i===0?'is-sunday':i===6?'is-saturday':''} ${hidden?'has-overflow':''} ${date.getMonth()!==month.getMonth()?'other':''} ${k===selected?'selected':''} ${k===key?'is-today':''}" style="grid-column:${i+1};grid-row:1 / -1" data-date="${k}" aria-pressed="${k===selected}" aria-label="${k}, 일정 ${daily.length}개"><span class="day-number">${date.getDate()}</span>${hidden?`<span class="more-events">+${hidden}개</span>`:''}</button>`;
       html+=visible.map((e,n)=>`<button type="button" class="event-chip ${e.type} single-event-button" data-span-event="${escapeHTML(e.id)}" style="grid-column:${i+1};grid-row:${free[n]+2};${e.type==='group'?groupColorStyle(groupById(e.group)):''}" aria-label="${escapeHTML(e.title+' · '+eventRange(e))}">${escapeHTML(e.title)}</button>`).join('');
     }
     html+=shown.map(({event:e,start,end,lane})=>`<button class="span-event ${e.type} ${e.date<dates[0]?'continues-before':''} ${eventEnd(e)>dates[6]?'continues-after':''}" data-span-event="${escapeHTML(e.id)}" style="grid-column:${start+1} / ${end+2};grid-row:${lane+2};${e.type==='group'?groupColorStyle(groupById(e.group)):''}" title="${escapeHTML(e.title+' · '+eventRange(e))}" aria-label="${escapeHTML(e.title+' · '+eventRange(e))}">${escapeHTML(e.title)}</button>`).join('');
@@ -473,12 +494,19 @@ window.moaPersonalData={
  }
 };
 
-window.moaQuickAddEvent=title=>{
+window.moaQuickAddEvent=async title=>{
  title=String(title||'').trim();if(!title)return false;
- events.push({id:'event-'+crypto.randomUUID(),title:title.slice(0,60),date:selected,endDate:selected,time:'00:00',endTime:'00:00',allDay:true,type:'personal',visibility:'private',note:'',group:''});
+ const target=filter==='group'&&!groupHub?groupById(activeGroup):null;
+ if(filter==='group'&&!target){notify('일정을 추가할 그룹을 선택해주세요.');return false;}
+ const item={id:'event-'+crypto.randomUUID(),title:title.slice(0,60),date:selected,endDate:selected,time:'00:00',endTime:'00:00',allDay:true,type:target?'group':'personal',visibility:'private',note:'',group:target?.id||''};
+ if(target?.shared){
+  try{await window.moaSharing.mutate('event_save',{group_id:target.id,version:target.version,event:item});animateSavedEvent(item);return true;}
+  catch(error){notify(error.message);return false;}
+ }
+ events.push(item);
  month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);
- if(filter!=='all'&&filter!=='personal'){filter='all';activeGroup='';}
- save();setView(filter,activeGroup,false);return true;
+ if(!target&&filter!=='all'&&filter!=='personal'){filter='all';activeGroup='';}
+ save();setView(filter,activeGroup,false);animateSavedEvent(item);return true;
 };
 
 document.querySelector('#cancel-event').addEventListener('click',()=>document.querySelector('#event-dialog').close());

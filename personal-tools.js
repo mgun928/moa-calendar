@@ -10,7 +10,7 @@ export function setupPersonalTools(){
  const section=document.createElement('section');
  section.id='timetable-section';section.hidden=true;
  section.innerHTML=`<header class="tt-heading"><div><p class="eyebrow">A RHYTHM OF YOUR OWN</p><h2>나의 주간 시간표</h2><p class="subtle">매주 반복할 나만의 리듬을 계획해요.</p></div><button type="button" class="outline" id="tt-add">＋ 일정</button></header>
- <label class="tt-share"><input type="checkbox" id="tt-share"> 친구에게 시간표 공개</label><form class="tt-settings"><label>표시 시작<select name="start" aria-label="표시 시작"></select></label><button class="outline" type="submit">적용</button></form>
+ <label class="tt-share"><input type="checkbox" id="tt-share"> 친구에게 시간표 공개</label><form class="tt-settings"><label>표시 시작<input name="start" type="time" step="3600" aria-label="표시 시작"></label><button class="outline" type="submit">적용</button></form>
  <details class="tt-outside" hidden><summary></summary><div></div></details>
  <div class="tt-scroll" tabindex="0" aria-label="주간 시간표, 빈 시간 칸을 선택하세요"><div class="tt-grid"></div></div>
  <p class="tt-help">빈 칸을 선택해 등록 · 블록을 선택해 수정 · 매주 반복되는 시간표</p>`;
@@ -18,7 +18,6 @@ export function setupPersonalTools(){
  const settings=section.querySelector('.tt-settings');
  let settingsDirty=false;
  settings.addEventListener('change',()=>{settingsDirty=true;});
- settings.elements.start.innerHTML=Array.from({length:24},(_,h)=>`<option value="${h*60}">${clock(h*60)}</option>`).join('');
  const scroller=section.querySelector('.tt-scroll'),grid=section.querySelector('.tt-grid');
  const saveNotes=[hobby,section].map(parent=>{const note=document.createElement('p');note.className='personal-save-status';note.setAttribute('role','status');parent.append(note);return note;});
  document.addEventListener('moa-save-status',event=>{saveNotes.forEach(note=>{
@@ -32,10 +31,10 @@ export function setupPersonalTools(){
  <div class="form-row"><label>시작 시각<input name="start" type="time" step="60" required></label><label>종료 시각<input name="end" type="time" step="60" required></label></div>
  <label class="tt-midnight"><input name="midnight" type="checkbox"> 자정(24:00)에 종료</label>
  <label>장소 (선택)<input name="place" maxlength="80"></label><label>메모 (선택)<textarea name="note" maxlength="500" rows="2"></textarea></label>
- <label>블록 색상<input name="color" type="color" value="#bc8158"></label>
+ <label class="tt-color-field"><span>블록 색상</span><input name="color" type="color" value="#bc8158"></label>
  <p class="form-error" id="tt-error" role="alert" hidden></p><label class="tt-overlap" hidden><input name="allowOverlap" type="checkbox"> 겹치는 시간을 확인했어요. 나란히 저장할게요.</label>
  <p class="subtle">시간표에만 저장되며, 개인·그룹 캘린더에는 추가되지 않아요.</p>
- <div class="dialog-actions"><button type="button" class="delete-button" id="tt-delete" hidden>일정 삭제</button><button class="primary" type="submit">저장하기</button></div></form>`;
+ <div class="dialog-actions"><button type="button" class="delete-button" id="tt-delete" hidden>일정 삭제</button><button class="primary" type="submit">저장하기</button><button class="outline" type="button" data-dismiss>취소하기</button></div></form>`;
  document.body.append(dialog);
  const form=dialog.querySelector('form'),fields=form.elements,error=dialog.querySelector('#tt-error'),overlapLabel=dialog.querySelector('.tt-overlap');
  let editing=null,drag=null,suppressClick=0;
@@ -54,7 +53,7 @@ export function setupPersonalTools(){
   dialog.showModal();
  }
  section.querySelector('#tt-add').onclick=()=>openEntry();
- dialog.querySelector('[data-dismiss]').onclick=()=>dialog.close();
+ dialog.querySelectorAll('[data-dismiss]').forEach(button=>button.onclick=()=>dialog.close());
  fields.midnight.onchange=()=>{fields.end.disabled=fields.midnight.checked;if(fields.midnight.checked)fields.end.value='00:00';};
  form.addEventListener('input',e=>{if(e.target!==fields.allowOverlap){fields.allowOverlap.checked=false;error.hidden=true;overlapLabel.hidden=true;}});
  form.addEventListener('submit',e=>{
@@ -71,7 +70,7 @@ export function setupPersonalTools(){
  });
  dialog.querySelector('#tt-delete').onclick=async()=>{if(!await window.moaConfirmDelete('이 시간표 일정을 삭제할까요?'))return;const next=timetable();saveTable({...next,entries:next.entries.filter(e=>e.id!==editing)});dialog.close();};
  settings.addEventListener('submit',e=>{
-  e.preventDefault();const start=Number(settings.elements.start.value);
+  e.preventDefault();const start=minutes(settings.elements.start.value);
   settingsDirty=false;saveTable({...timetable(),start});
  });
  grid.addEventListener('click',e=>{
@@ -104,7 +103,7 @@ export function setupPersonalTools(){
  section.querySelector('.tt-outside').addEventListener('click',e=>{const b=e.target.closest('[data-outside]');if(b)openEntry(b.dataset.outside);});
  function renderTable(){
   const table=timetable(),days=7;share.checked=table.visibility==='friends';
-  if(!settingsDirty)settings.elements.start.value=table.start;
+  if(!settingsDirty)settings.elements.start.value=clock(table.start);
   const slots=(table.end-table.start)/30,shown=table.entries.filter(e=>e.day<days&&e.end>table.start&&e.start<table.end);
   const placed=layoutEntries(shown),outside=table.entries.filter(e=>e.day>=days||e.start<table.start||e.end>table.end);
   const info=section.querySelector('.tt-outside');info.hidden=!outside.length;
@@ -152,7 +151,7 @@ export function setupPersonalTools(){
  habitDialog.innerHTML=`<form><div class="section-heading"><h2 id="habit-dialog-title">취미 추가</h2><button class="icon-button" type="button" data-dismiss aria-label="취미 창 닫기">×</button></div>
  <label>취미 이름<input name="title" required maxlength="60"></label><label>주간 목표 (활동한 날 수)<input name="target" type="number" min="1" max="7" step="1" required value="3"></label>
  <p class="subtle">하루 한 번 기록해요. 기존 기록은 이름이나 목표를 바꿔도 유지돼요.</p><p class="form-error" role="alert" hidden></p>
- <div class="dialog-actions"><button class="delete-button" type="button" id="habit-delete" hidden>취미 삭제</button><button class="primary" type="submit">저장하기</button></div></form>`;
+ <div class="dialog-actions"><button class="delete-button" type="button" id="habit-delete" hidden>취미 삭제</button><button class="primary" type="submit">저장하기</button><button class="outline" type="button" data-dismiss>취소하기</button></div></form>`;
  document.body.append(habitDialog);const hf=habitDialog.querySelector('form');let habitId=null;
  const habits=()=>data().habits||defaultHabits();
  function openHabit(id=null){
@@ -162,7 +161,7 @@ export function setupPersonalTools(){
   habitDialog.querySelector('#habit-delete').hidden=!habit;habitDialog.querySelector('.form-error').hidden=true;habitDialog.showModal();
  }
  controls.querySelector('button').onclick=()=>openHabit();
- habitDialog.querySelector('[data-dismiss]').onclick=()=>habitDialog.close();
+ habitDialog.querySelectorAll('[data-dismiss]').forEach(button=>button.onclick=()=>habitDialog.close());
  hf.onsubmit=e=>{
   e.preventDefault();const title=hf.elements.title.value.trim(),target=Number(hf.elements.target.value);
   if(!title||!Number.isInteger(target)||target<1||target>7){const message=habitDialog.querySelector('.form-error');message.textContent='이름과 1~7일 사이의 주간 목표를 입력해 주세요.';message.hidden=false;return;}

@@ -6,7 +6,7 @@ import { authReady } from './auth.js';
 import { openCalendarStore } from './calendar-store.js';
 import { setupGroupSharing } from './group-sharing.js';
 import { setupProfileMenu } from './profile-menu.js';
-import { setupMobileDashboard } from './mobile-dashboard.js?v=mobile-friends-1';
+import { setupMobileDashboard } from './mobile-dashboard.js?v=quick-save-1';
 
 
 async function loadScript(src) {

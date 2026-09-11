@@ -23,8 +23,18 @@ export function setupMobileDashboard(){
  const quickAdd=document.createElement('form');quickAdd.className='mobile-quick-add';
  quickAdd.innerHTML='<input class="quick-add-label" aria-label="일정 이름" maxlength="60" autocomplete="off" enterkeyhint="done"><button type="button" class="quick-add-plus" aria-label="일정 상세 설정">+</button>';
  panel.after(quickAdd);
- quickAdd.querySelector('.quick-add-plus').addEventListener('click',()=>{
-  const input=quickAdd.querySelector('input'),title=input.value.trim();
+ const quickInput=quickAdd.querySelector('input'),quickButton=quickAdd.querySelector('.quick-add-plus');
+ function syncQuickButton(){
+  const ready=!!quickInput.value.trim();
+  quickButton.textContent=ready?'✓':'+';
+  quickButton.setAttribute('aria-label',ready?'일정 저장':'일정 상세 설정');
+ }
+ quickInput.addEventListener('input',syncQuickButton);
+ quickInput.addEventListener('compositionend',syncQuickButton);
+ quickInput.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.isComposing)e.preventDefault();});
+ quickButton.addEventListener('click',()=>{
+  const input=quickInput,title=input.value.trim();
+  if(title){quickAdd.requestSubmit();return;}
   input.blur();document.querySelector('#add-event').click();
   document.querySelector('#event-form').elements.title.value=title;
   const heading=document.querySelector('#dialog-title');heading.tabIndex=-1;heading.focus({preventScroll:true});
@@ -33,7 +43,7 @@ export function setupMobileDashboard(){
  quickAdd.addEventListener('submit',e=>{
   e.preventDefault();const input=quickAdd.querySelector('input'),title=input.value.trim();
   if(!title){input.focus();return;}
-  if(window.moaQuickAddEvent(title)){input.value='';input.blur();}
+  if(window.moaQuickAddEvent(title)){input.value='';syncQuickButton();input.blur();}
  });
  function positionQuickAdd(){
   const vp=window.visualViewport;

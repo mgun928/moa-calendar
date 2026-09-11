@@ -69,3 +69,15 @@ test('own short code cannot create a self request',async()=>{
   assert.equal(root.querySelector('#friend-result').innerHTML,'');
  }finally{api.stop();}
 });
+
+test('friend deletion requires confirmation and cancellation makes no RPC',async()=>{
+ const calls=[];const {root,api}=setup(async(name,args)=>{calls.push(args.action);return {data:[]};});
+ const button={id:'friend-profile-remove',dataset:{friendAction:'remove',id:'friend'}};
+ const event={target:{closest:s=>s==='[data-friend-action]'?button:null}};
+ try{
+  window.moaConfirmDelete=async()=>false;await root.listeners.click(event);
+  assert.deepEqual(calls,[]);assert.equal(button.disabled,false);
+  window.moaConfirmDelete=async()=>true;await root.listeners.click(event);
+  assert.deepEqual(calls,['remove','list']);
+ }finally{api.stop();}
+});

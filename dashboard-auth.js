@@ -1,3 +1,5 @@
+import {confirmDelete} from './confirm-delete.js';
+window.moaConfirmDelete=confirmDelete;
 import { setupPersonalTools } from './personal-tools.js?v=full-profile-3-weekly-tools-2';
 import { setupFriends } from './friends.js?v=full-profile-3';
 import { authReady } from './auth.js';

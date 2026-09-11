@@ -48,6 +48,12 @@ test('events that fit stay visible; multi-day events form one bar per week',()=>
 
 test('a single event uses the first lane when the long event is on other dates',()=>{
  const html=render(2,[{...events[0],date:'2026-08-02',endDate:'2026-08-04'},{...events[1],title:'헬스',date:'2026-08-05'}]);
- assert.match(html,/top:32px;[^>]*>헬스<\/span>/);
+ assert.match(html,/grid-row:2;[^>]*>헬스<\/button>/);
  assert.doesNotMatch(html,/class="more-events/);
 });
+
+ test('single-day personal events are separate edit buttons rather than date content',()=>{
+  const html=render(2,[events[0]]);
+  assert.match(html,/<button type="button" class="event-chip personal single-event-button" data-span-event="0"/);
+  assert.doesNotMatch(html,/<span class="event-chip/);
+ });

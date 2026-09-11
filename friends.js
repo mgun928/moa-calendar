@@ -112,7 +112,9 @@ export function setupFriends(client,userId){
   if(date){detailDate=date.dataset.friendDate;renderDay();if(!$('#friend-day-dialog').open)$('#friend-day-dialog').showModal();return;}
   const b=e.target.closest('[data-friend-action]');if(!b||busy)return;
   if(b.dataset.friendAction==='profile'){selected=b.dataset.id;month=new Date(new Date().getFullYear(),new Date().getMonth(),1);viewer.open();await refresh();return;}
-  busy=true;b.disabled=true;clearCalendar();
+  busy=true;b.disabled=true;
+  if(b.dataset.friendAction==='remove'&&b.id==='friend-profile-remove'&&!await window.moaConfirmDelete('친구를 삭제할까요? 서로의 친구 목록에서 제거됩니다.')){busy=false;b.disabled=false;return;}
+  clearCalendar();
   try{await call(b.dataset.friendAction,b.dataset.id);$('#friend-result').replaceChildren();await refresh();}catch(error){status(error.message);}finally{busy=false;b.disabled=false;}
  });
  root.querySelectorAll('[data-month]').forEach(b=>b.addEventListener('click',()=>{month.setMonth(month.getMonth()+Number(b.dataset.month));void refresh();}));

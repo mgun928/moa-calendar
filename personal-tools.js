@@ -69,7 +69,7 @@ export function setupPersonalTools(){
   }
   const next=timetable();saveTable({...next,entries:[...next.entries.filter(e=>e.id!==entry.id),entry]});dialog.close();
  });
- dialog.querySelector('#tt-delete').onclick=()=>{const next=timetable();saveTable({...next,entries:next.entries.filter(e=>e.id!==editing)});dialog.close();};
+ dialog.querySelector('#tt-delete').onclick=async()=>{if(!await window.moaConfirmDelete('이 시간표 일정을 삭제할까요?'))return;const next=timetable();saveTable({...next,entries:next.entries.filter(e=>e.id!==editing)});dialog.close();};
  settings.addEventListener('submit',e=>{
   e.preventDefault();const start=Number(settings.elements.start.value);
   settingsDirty=false;saveTable({...timetable(),start});
@@ -168,7 +168,7 @@ export function setupPersonalTools(){
   if(!title||!Number.isInteger(target)||target<1||target>7){const message=habitDialog.querySelector('.form-error');message.textContent='이름과 1~7일 사이의 주간 목표를 입력해 주세요.';message.hidden=false;return;}
   const h={id:habitId||uid('habit'),title,target};api.update({habits:[...habits().filter(x=>x.id!==h.id),h]});habitDialog.close();
  };
- habitDialog.querySelector('#habit-delete').onclick=()=>{api.update({habits:habits().filter(h=>h.id!==habitId),checks:Object.fromEntries(Object.entries(data().checks).filter(([key])=>!key.startsWith(habitId+':')))});habitDialog.close();};
+ habitDialog.querySelector('#habit-delete').onclick=async()=>{if(!await window.moaConfirmDelete('취미와 활동 기록을 삭제할까요?'))return;api.update({habits:habits().filter(h=>h.id!==habitId),checks:Object.fromEntries(Object.entries(data().checks).filter(([key])=>!key.startsWith(habitId+':')))});habitDialog.close();};
  document.querySelector('#hobbies').addEventListener('click',e=>{
   const edit=e.target.closest('[data-edit-habit]');if(edit){openHabit(edit.dataset.editHabit);return;}
   const log=e.target.closest('[data-log-habit]');

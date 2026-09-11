@@ -61,6 +61,9 @@ async function inviteToGroup(id,emails){
 function visibleEvents(){return events.filter(e=>(['all','timetable'].includes(filter)||e.type===filter)&&(!activeGroup||e.group===activeGroup));}
 function weekKeys(){const start=new Date(today);start.setDate(start.getDate()-((start.getDay()+6)%7));return Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return dateKey(d);});}
 function render(){
+  const quickLabel=document.querySelector('.quick-add-label');
+  if(quickLabel){const d=parseDate(selected);quickLabel.placeholder=`${d.getMonth()+1}월 ${d.getDate()}일 일정 추가`;}
+
   renderGroups();
   const matching=visibleEvents();
   $('#month-title').textContent=`${month.getFullYear()}.${String(month.getMonth()+1).padStart(2,'0')}`;
@@ -108,7 +111,7 @@ function openEvent(id=null){
   editing=id;const form=$('#event-form');form.reset();const event=events.find(e=>e.id===id);
   $('#event-error').hidden=true;form.elements.endDate.value=event?eventEnd(event):selected;form.elements.endTime.value=event?.endTime||event?.time||'10:00';form.elements.allDay.checked=!!event?.allDay;syncEventTimes();
   $('#dialog-title').textContent=event?'일정 수정':'새 일정';$('#delete-event').hidden=!event;
-  form.elements.date.value=event?.date||selected;form.elements.time.value=event?.time||'09:00';form.elements.type.value=event?.type||(['personal','group','hobby'].includes(filter)?filter:'personal');
+  form.elements.date.value=event?.date||selected;form.elements.time.value=event?.time||'09:00';form.elements.type.value=event?(event.type==='group'?'group':'personal'):(filter==='group'?'group':'personal');
   form.elements.group.innerHTML=userGroups.map(g=>`<option value="${escapeHTML(g.id)}">${escapeHTML(g.name)}</option>`).join('');
   form.elements.title.value=event?.title||'';form.elements.note.value=event?.note||'';form.elements.group.value=event?.group||activeGroup||userGroups[0]?.id||'';
   form.elements.visibility.value=event?.visibility==='friends'?'friends':'private';
@@ -116,7 +119,7 @@ function openEvent(id=null){
   $('#event-memory').hidden=!event||event.type!=='group';$('#event-memory').dataset.event=id||'';
   $('#group-field').hidden=form.elements.type.value!=='group';$('#event-dialog').showModal();
 }
-$('#calendar').addEventListener('click',e=>{const eventButton=e.target.closest('[data-span-event]');if(eventButton){openEvent(eventButton.dataset.spanEvent);return;}const b=e.target.closest('[data-date]');if(b){selected=b.dataset.date;month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);render();if(matchMedia('(max-width:640px)').matches)openDaySheet();}});
+$('#calendar').addEventListener('click',e=>{const eventButton=e.target.closest('[data-span-event]');if(eventButton){openEvent(eventButton.dataset.spanEvent);return;}const b=e.target.closest('[data-date]');if(b){selected=b.dataset.date;month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);render();}});
 $('#agenda').addEventListener('click',e=>{const b=e.target.closest('[data-event]');if(b)openEvent(b.dataset.event);});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.filter,'',false)));
@@ -152,9 +155,11 @@ $('#event-form').addEventListener('submit',async e=>{
 });
 $('#event-form').elements.title.addEventListener('input',e=>e.target.setCustomValidity(''));
 $('#delete-event').addEventListener('click',async e=>{
-  const event=events.find(x=>x.id===editing),group=groupById(event?.group);
+  const event=events.find(x=>x.id===editing),group=groupById(event?.group),button=e.currentTarget;
+  if(!event||button.disabled)return;
+  if(!await window.moaConfirmDelete(`‘${event.title}’ 일정을 삭제할까요?${group?.shared?' 그룹원에게도 삭제됩니다.':''}`))return;
   if(group?.shared){
-    if(e.currentTarget.disabled)return;const button=e.currentTarget;button.disabled=true;
+    if(button.disabled)return;button.disabled=true;
     try{await window.moaSharing.mutate('event_delete',{group_id:group.id,version:group.version,event_id:editing});$('#event-dialog').close();notify('그룹 일정을 삭제했어요.');}
     catch(error){showFormError('#event-error',error.message);}finally{button.disabled=false;}return;
   }
@@ -339,7 +344,8 @@ function renderMobileMonth(first,cells,matching){
       const singles=daily.filter(e=>eventEnd(e)===e.date).sort((a,b)=>Number(b.allDay)-Number(a.allDay)||a.time.localeCompare(b.time));
       const free=Array.from({length:limit},(_,lane)=>lane).filter(lane=>!occupied.has(lane));
       const visible=singles.slice(0,free.length),hidden=daily.length-occupied.size-visible.length;
-      html+=`<button class="day mobile-day ${hidden?'has-overflow':''} ${date.getMonth()!==month.getMonth()?'other':''} ${k===selected?'selected':''} ${k===key?'is-today':''}" style="grid-column:${i+1};grid-row:1 / -1" data-date="${k}" aria-pressed="${k===selected}" aria-label="${k}, 일정 ${daily.length}개"><span class="day-number">${date.getDate()}</span>${visible.map((e,n)=>`<span class="event-chip ${e.type}" style="position:absolute;top:${32+free[n]*22}px;left:2px;right:2px;${e.type==='group'?groupColorStyle(groupById(e.group)):''}">${escapeHTML(e.title)}</span>`).join('')}${hidden?`<span class="more-events">+${hidden}개</span>`:''}</button>`;
+      html+=`<button class="day mobile-day ${hidden?'has-overflow':''} ${date.getMonth()!==month.getMonth()?'other':''} ${k===selected?'selected':''} ${k===key?'is-today':''}" style="grid-column:${i+1};grid-row:1 / -1" data-date="${k}" aria-pressed="${k===selected}" aria-label="${k}, 일정 ${daily.length}개"><span class="day-number">${date.getDate()}</span>${hidden?`<span class="more-events">+${hidden}개</span>`:''}</button>`;
+      html+=visible.map((e,n)=>`<button type="button" class="event-chip ${e.type} single-event-button" data-span-event="${escapeHTML(e.id)}" style="grid-column:${i+1};grid-row:${free[n]+2};${e.type==='group'?groupColorStyle(groupById(e.group)):''}" aria-label="${escapeHTML(e.title+' · '+eventRange(e))}">${escapeHTML(e.title)}</button>`).join('');
     }
     html+=shown.map(({event:e,start,end,lane})=>`<button class="span-event ${e.type} ${e.date<dates[0]?'continues-before':''} ${eventEnd(e)>dates[6]?'continues-after':''}" data-span-event="${escapeHTML(e.id)}" style="grid-column:${start+1} / ${end+2};grid-row:${lane+2};${e.type==='group'?groupColorStyle(groupById(e.group)):''}" title="${escapeHTML(e.title+' · '+eventRange(e))}" aria-label="${escapeHTML(e.title+' · '+eventRange(e))}">${escapeHTML(e.title)}</button>`).join('');
     html+='</div>';
@@ -372,3 +378,13 @@ window.moaPersonalData={
   if(!id){$('#event-form').elements.type.value='hobby';$('#group-field').hidden=true;syncVisibility();}
  }
 };
+
+window.moaQuickAddEvent=title=>{
+ title=String(title||'').trim();if(!title)return false;
+ events.push({id:'event-'+crypto.randomUUID(),title:title.slice(0,60),date:selected,endDate:selected,time:'00:00',endTime:'00:00',allDay:true,type:'personal',visibility:'private',note:'',group:''});
+ month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);
+ if(filter!=='all'&&filter!=='personal'){filter='all';activeGroup='';}
+ save();setView(filter,activeGroup,false);return true;
+};
+
+document.querySelector('#cancel-event').addEventListener('click',()=>document.querySelector('#event-dialog').close());

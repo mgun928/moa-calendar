@@ -20,6 +20,30 @@ export function setupMobileDashboard(){
  const homes=movable.map(node=>({node,parent:node.parentNode,next:node.nextSibling}));
  const summary=document.querySelector('#summary'),workspace=document.querySelector('.workspace'),grid=document.querySelector('.content-grid');
  const panel=document.querySelector('.calendar-panel'),calendar=document.querySelector('#calendar');
+ const quickAdd=document.createElement('form');quickAdd.className='mobile-quick-add';
+ quickAdd.innerHTML='<input class="quick-add-label" aria-label="일정 이름" maxlength="60" autocomplete="off" enterkeyhint="done"><button type="button" class="quick-add-plus" aria-label="일정 상세 설정">+</button>';
+ panel.after(quickAdd);
+ quickAdd.querySelector('.quick-add-plus').addEventListener('click',()=>{
+  const input=quickAdd.querySelector('input'),title=input.value.trim();
+  input.blur();document.querySelector('#add-event').click();
+  document.querySelector('#event-form').elements.title.value=title;
+  const heading=document.querySelector('#dialog-title');heading.tabIndex=-1;heading.focus({preventScroll:true});
+ });
+
+ quickAdd.addEventListener('submit',e=>{
+  e.preventDefault();const input=quickAdd.querySelector('input'),title=input.value.trim();
+  if(!title){input.focus();return;}
+  if(window.moaQuickAddEvent(title)){input.value='';input.blur();}
+ });
+ function positionQuickAdd(){
+  const vp=window.visualViewport;
+  const inset=vp?Math.max(0,innerHeight-vp.height-vp.offsetTop):0;
+  quickAdd.style.setProperty('--keyboard-inset',inset+'px');
+ }
+ window.visualViewport?.addEventListener('resize',positionQuickAdd);
+ window.visualViewport?.addEventListener('scroll',positionQuickAdd);
+ positionQuickAdd();
+
  let monthSwipe=null,monthClickUntil=0,monthAnimating=false;
  calendar.style.touchAction='pan-y';
  calendar.addEventListener('pointerdown',e=>{
@@ -78,7 +102,7 @@ export function setupMobileDashboard(){
   positionFriends();friendPopup.hidden=false;friends.hidden=false;friendButton.setAttribute('aria-expanded','true');void window.moaFriends.refresh();
  });
  friendPopup.querySelector('button').addEventListener('click',closeFriends);
- document.addEventListener('click',e=>{if(!friendPopup.hidden&&!friendPopup.contains(e.target)&&!friendButton.contains(e.target))closeFriends();});
+ document.addEventListener('click',e=>{if(!friendPopup.hidden&&!e.target.closest('.delete-confirm')&&!friendPopup.contains(e.target)&&!friendButton.contains(e.target))closeFriends();});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.querySelector('#friend-profile[open]'))closeFriends();});
  window.addEventListener('resize',()=>{if(!friendPopup.hidden)positionFriends();});
 
@@ -161,7 +185,8 @@ export function setupMobileDashboard(){
    const chrome=Array.from(panel.children).filter(e=>e!==calendar).reduce((n,e)=>n+e.getBoundingClientRect().height,0);
    const safeBottom=parseFloat(getComputedStyle(bottomHandle).paddingBottom)||0;
    const viewport=window.visualViewport?.height||window.innerHeight;
-   const available=viewport-top-(media.matches?Math.max(8,safeBottom):12);
+   const quickHeight=media.matches?quickAdd.getBoundingClientRect().height:0;
+   const available=viewport-top-(media.matches?Math.max(8,safeBottom)+quickHeight+14:12);
    const height=media.matches?Math.max(0,available):Math.max(chrome+weeks*76+2,available);
    panel.style.setProperty('--mobile-calendar-height',height+'px');
    grid.style.setProperty('--calendar-height',height+'px');

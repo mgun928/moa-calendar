@@ -23,12 +23,14 @@ const initialCalendar = window.moaCalendarStore.initial;
 events = initialCalendar.events;
 checks = initialCalendar.checks;
 userGroups = initialCalendar.groups;
+let habits = initialCalendar.habits || [{id:'reading',title:'책과 가까워지기',target:3},{id:'walking',title:'가볍게 산책하기',target:4}];
+let timetable = initialCalendar.timetable || {entries:[],weekend:false,start:480,end:1320};
 // Normalize older name-based group references.
 events=events.map(e=>e.type==='group'?{...e,group:userGroups.find(g=>g.id===e.group||g.name===e.group)?.id||e.group}:e);
 events=events.map(e=>({...e,endDate:e.endDate&&e.endDate>=e.date?e.endDate:e.date,allDay:!!e.allDay}));
 function save(){
   const sharedIds = new Set(userGroups.filter(g=>g.shared).map(g=>g.id));
-  window.moaCalendarStore.save({events:events.filter(e=>!sharedIds.has(e.group)),checks,groups:userGroups.filter(g=>!g.shared)});
+  window.moaCalendarStore.save({...initialCalendar,events:events.filter(e=>!sharedIds.has(e.group)),checks,groups:userGroups.filter(g=>!g.shared),habits,timetable});
   // Completion is announced only after the server acknowledges the write.
   return false;
 }
@@ -56,7 +58,7 @@ async function inviteToGroup(id,emails){
   await window.moaSharing.mutate('invite',{group_id:id,emails});
   save();
 }
-function visibleEvents(){return events.filter(e=>(filter==='all'||e.type===filter)&&(!activeGroup||e.group===activeGroup));}
+function visibleEvents(){return events.filter(e=>(['all','timetable'].includes(filter)||e.type===filter)&&(!activeGroup||e.group===activeGroup));}
 function weekKeys(){const start=new Date(today);start.setDate(start.getDate()-((start.getDay()+6)%7));return Array.from({length:7},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return dateKey(d);});}
 function render(){
   renderGroups();
@@ -64,33 +66,39 @@ function render(){
   $('#month-title').textContent=`${month.getFullYear()}.${String(month.getMonth()+1).padStart(2,'0')}`;
   const first=new Date(month.getFullYear(),month.getMonth(),1);first.setDate(first.getDate()-first.getDay());
   const cells=Math.ceil((new Date(month.getFullYear(),month.getMonth(),1).getDay()+new Date(month.getFullYear(),month.getMonth()+1,0).getDate())/7)*7;
+  $('#calendar').style.setProperty('--week-count',cells/7);
   $('#calendar').innerHTML=renderCalendarWeeks(first,cells,matching);
+  window.layoutMobileCalendar?.();
   $('#month-count').textContent=`이번 달 ${matching.filter(e=>e.date<=dateKey(new Date(month.getFullYear(),month.getMonth()+1,0))&&eventEnd(e)>=dateKey(month)).length}개의 일정`;
   const daily=matching.filter(e=>occursOn(e,selected)).sort((a,b)=>a.time.localeCompare(b.time));
   $('#agenda-title').textContent=selected===key?'오늘의 일정':'선택한 날의 일정';
   $('#selected-date').textContent=parseDate(selected).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
   $('#agenda-count').textContent=daily.length;
   $('#agenda').innerHTML=daily.length?daily.map(e=>`<button class="agenda-item" data-event="${escapeHTML(e.id)}"><span class="agenda-time">${e.allDay?'종일':e.date===selected?e.time:eventEnd(e)===selected?(e.endTime||'종료'):'계속'}</span><span class="agenda-detail ${e.type}" ${e.type==='group'?`style="${groupColorStyle(groupById(e.group))}"`:""}><strong>${escapeHTML(e.title)}</strong>${eventEnd(e)>e.date?`<small>${escapeHTML(eventRange(e))}</small>`:""}<small>${escapeHTML(e.type==='group'?groupLabel(e.group):labels[e.type])}${e.note?` · ${escapeHTML(e.note)}`:''}</small></span></button>`).join(''):'<p class="empty">아직 정해진 일정이 없어요.<br>나를 위한 시간을 모아볼까요?</p>';
-  const completed=['reading','walking'].reduce((n,id)=>n+weekKeys().filter(k=>checks[`${id}:${k}`]).length,0);
+  const completed=habits.map(h=>h.id).reduce((n,id)=>n+weekKeys().filter(k=>checks[`${id}:${k}`]).length,0);
   $('#summary').innerHTML=[['□','오늘의 일정',events.filter(e=>occursOn(e,key)).length,'개의 약속'],['♧','함께하는 그룹',userGroups.length,'개의 모임'],['❀','이번 주 취미 기록',completed,'번의 작은 실천']].map(s=>`<div class="summary-item"><span class="summary-icon" aria-hidden="true">${s[0]}</span><div><p>${s[1]}</p><strong>${s[2]}<small>${s[3]}</small></strong></div></div>`).join('');
-  $('#hobbies').innerHTML=[['reading','책과 가까워지기',3],['walking','가볍게 산책하기',4]].map(([id,title,target])=>{const count=weekKeys().filter(k=>checks[`${id}:${k}`]).length,done=!!checks[`${id}:${key}`];return `<div class="hobby-row"><div class="hobby-info"><strong>${title}</strong><span>${count} / ${target}회</span><button data-habit="${id}" aria-pressed="${done}">${done?'✓ 오늘 완료':'＋ 기록'}</button></div><div class="progress" role="progressbar" aria-label="${title}" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${Math.min(count,target)}"><i style="width:${Math.min(100,count/target*100)}%"></i></div></div>`;}).join('');
   $('#groups').innerHTML=userGroups.map(g=>groupCard(g,true)).join('');
   window.refreshMemories?.();
+  window.renderPersonalTools?.();
   document.querySelectorAll('[data-filter]').forEach(b=>{b.classList.toggle('active',b.dataset.filter===filter);b.setAttribute('aria-pressed',String(b.dataset.filter===filter));});
 }
 function setView(view,group='',showHub=view==='group'&&!group){
   filter=view;activeGroup=group;
+  document.body.dataset.view=view;
+  if($('#friends-section'))$('#friends-section').hidden=view!=='friends';
+  if(view==='friends')window.moaFriends?.refresh();
+  if($('#timetable-section'))$('#timetable-section').hidden=view!=='timetable';
   groupHub=showHub;
   $('#group-hub').hidden=!groupHub;
-  $('.content-grid').hidden=groupHub;
-  $('#summary').hidden=groupHub||!!group;
-  $('.groups-section').hidden=groupHub||!!group;
-  $('#add-event').hidden=groupHub;
+  $('.content-grid').hidden=groupHub||['memories','friends','timetable'].includes(view);
+  $('#summary').hidden=groupHub||!!group||['memories','friends','timetable'].includes(view);
+  $('.groups-section').hidden=groupHub||!!group||['memories','friends','timetable'].includes(view);
+  $('#add-event').hidden=groupHub||['memories','friends','timetable'].includes(view);
   $('#group-detail-bar').hidden=!group;
   $('.calendar-filters').hidden=!!group;
   $('.hobby-panel').hidden=!!group;
   $('#group-detail-description').textContent=groupById(group)?.description||'';
-  const names={all:'모아보기',personal:'개인 캘린더',group:'그룹 캘린더',hobby:'취미 관리'};
+  const names={all:'모아보기',personal:'개인 캘린더',group:'그룹 캘린더',hobby:'취미 관리',memories:'추억 사진',friends:'친구',timetable:'시간표'};
   const titles={all:'오늘도, 나다운 하루를 모아.',personal:'나만의 속도로 채우는 하루.',group:'함께라서 더 좋은 하루.',hobby:'좋아하는 일에, 조금 더 가까이.'};
   $('#breadcrumb').textContent=group?`그룹 캘린더 / ${groupLabel(group)}`:names[view];$('#page-title').textContent=group?groupLabel(group):titles[view];
   $('#page-description').textContent=group?'우리의 다음 약속을 달력에서 확인해요.':{all:'소중한 약속과 나를 위한 시간, 한곳에서 가볍게 정리해요.',personal:'작은 할 일부터 중요한 약속까지, 나의 시간을 정리해요.',group:'함께하는 약속을 모아 두고, 다음 만남을 준비해요.',hobby:'좋아하는 일을 계획하고, 오늘의 작은 실천을 기록해요.'}[view];
@@ -100,31 +108,33 @@ function openEvent(id=null){
   editing=id;const form=$('#event-form');form.reset();const event=events.find(e=>e.id===id);
   $('#event-error').hidden=true;form.elements.endDate.value=event?eventEnd(event):selected;form.elements.endTime.value=event?.endTime||event?.time||'10:00';form.elements.allDay.checked=!!event?.allDay;syncEventTimes();
   $('#dialog-title').textContent=event?'일정 수정':'새 일정';$('#delete-event').hidden=!event;
-  form.elements.date.value=event?.date||selected;form.elements.time.value=event?.time||'09:00';form.elements.type.value=event?.type||(filter==='all'?'personal':filter);
+  form.elements.date.value=event?.date||selected;form.elements.time.value=event?.time||'09:00';form.elements.type.value=event?.type||(['personal','group','hobby'].includes(filter)?filter:'personal');
   form.elements.group.innerHTML=userGroups.map(g=>`<option value="${escapeHTML(g.id)}">${escapeHTML(g.name)}</option>`).join('');
   form.elements.title.value=event?.title||'';form.elements.note.value=event?.note||'';form.elements.group.value=event?.group||activeGroup||userGroups[0]?.id||'';
+  form.elements.visibility.value=event?.visibility==='friends'?'friends':'private';
+  syncVisibility();
   $('#event-memory').hidden=!event||event.type!=='group';$('#event-memory').dataset.event=id||'';
   $('#group-field').hidden=form.elements.type.value!=='group';$('#event-dialog').showModal();
 }
-$('#calendar').addEventListener('click',e=>{const eventButton=e.target.closest('[data-span-event]');if(eventButton){openEvent(eventButton.dataset.spanEvent);return;}const b=e.target.closest('[data-date]');if(b){selected=b.dataset.date;month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);render();}});
+$('#calendar').addEventListener('click',e=>{const eventButton=e.target.closest('[data-span-event]');if(eventButton){openEvent(eventButton.dataset.spanEvent);return;}const b=e.target.closest('[data-date]');if(b){selected=b.dataset.date;month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);render();if(matchMedia('(max-width:640px)').matches)openDaySheet();}});
 $('#agenda').addEventListener('click',e=>{const b=e.target.closest('[data-event]');if(b)openEvent(b.dataset.event);});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.filter,'',false)));
 $('#groups').addEventListener('click',e=>{const b=e.target.closest('[data-group]');if(b){setView('group',b.dataset.group);$('.calendar-panel').scrollIntoView({block:'start'});}});
-$('#hobbies').addEventListener('click',e=>{const b=e.target.closest('[data-habit]');if(b){const k=`${b.dataset.habit}:${key}`;checks[k]=!checks[k];const saved=save();render();if(saved)notify(checks[k]?'오늘의 작은 실천을 기록했어요.':'오늘 기록을 취소했어요.');}});
 $('#prev-month').addEventListener('click',()=>{month.setMonth(month.getMonth()-1);render();});
 $('#next-month').addEventListener('click',()=>{month.setMonth(month.getMonth()+1);render();});
 $('#today').addEventListener('click',()=>{month=new Date(today.getFullYear(),today.getMonth(),1);selected=key;render();});
 $('#add-event').addEventListener('click',()=>openEvent());$('#add-selected').addEventListener('click',()=>openEvent());
 $('#close-dialog').addEventListener('click',()=>$('#event-dialog').close());
-$('#event-form').elements.type.addEventListener('change',e=>$('#group-field').hidden=e.target.value!=='group');
+function syncVisibility(){const f=$('#event-form').elements;f.visibility.disabled=false;f.visibility.options[0].textContent=f.type.value==='group'?'나만 보기 (그룹원은 항상 표시)':'나만 보기';f.visibility.options[1].textContent=f.type.value==='group'?'보이게 하기 (친구에게 공개)':'친구에게 공개';}
+$('#event-form').elements.type.addEventListener('change',e=>{$('#group-field').hidden=e.target.value!=='group';syncVisibility();});
 $('#event-form').addEventListener('submit',async e=>{
   e.preventDefault();const f=e.currentTarget.elements;
   if(!f.title.value.trim()){f.title.setCustomValidity('일정 이름을 입력해 주세요.');f.title.reportValidity();return;}
   if(f.type.value==='group'&&!groupById(f.group.value)){notify('먼저 그룹을 만들어 주세요.');return;}
   const range={date:f.date.value,endDate:f.endDate.value,time:f.time.value,endTime:f.endTime.value,allDay:f.allDay.checked};
   const error=validateEventRange(range);if(error){showFormError('#event-error',error);return;}
-  const item={...range,id:editing||`event-${Date.now()}-${Math.random().toString(36).slice(2)}`,title:f.title.value.trim(),date:f.date.value,time:f.allDay.checked?'00:00':f.time.value,type:f.type.value,note:f.note.value.trim(),group:f.type.value==='group'?f.group.value:''};
+  const item={...range,visibility:f.visibility.value==='friends'?'friends':'private',id:editing||`event-${Date.now()}-${Math.random().toString(36).slice(2)}`,title:f.title.value.trim(),date:f.date.value,time:f.allDay.checked?'00:00':f.time.value,type:f.type.value,note:f.note.value.trim(),group:f.type.value==='group'?f.group.value:''};
   const old=events.find(e=>e.id===editing), target=groupById(item.group), previous=groupById(old?.group);
   if(old&&(previous?.shared||target?.shared)&&(old.group!==item.group||old.type!==item.type)){
     showFormError('#event-error','공유 일정은 다른 캘린더로 이동할 수 없어요. 새 일정으로 추가해주세요.');return;
@@ -310,18 +320,55 @@ function weekSegments(dates,matching){
   });
 }
 function renderCalendarWeeks(first,cells,matching){
+  return renderMobileMonth(first,cells,matching);
+}
+
+window.applySharedGroups(window.moaSharing.groups);
+
+function renderMobileMonth(first,cells,matching){
+  const limit=window.moaMobileSlots ?? 3;
   let html='';
   for(let offset=0;offset<cells;offset+=7){
     const dates=Array.from({length:7},(_,i)=>{const d=new Date(first);d.setDate(d.getDate()+offset+i);return dateKey(d);});
-    const segments=weekSegments(dates,matching),lanes=segments.reduce((n,s)=>Math.max(n,s.lane+1),0);
-    html+=`<div class="calendar-week" style="--lanes:${lanes};grid-template-rows:32px ${lanes?`repeat(${lanes},26px) `:''}minmax(80px,auto)">`;
-    html+=dates.map((k,i)=>{const d=parseDate(k),daily=matching.filter(e=>occursOn(e,k)),singles=daily.filter(e=>eventEnd(e)===e.date).sort((a,b)=>Number(b.allDay)-Number(a.allDay)||a.time.localeCompare(b.time));return `<button class="day ${d.getMonth()!==month.getMonth()?'other':''} ${k===selected?'selected':''} ${k===key?'is-today':''}" style="grid-column:${i+1};grid-row:1 / span ${lanes+2}" data-date="${k}" aria-pressed="${k===selected}" aria-label="${k}, 일정 ${daily.length}개"><span class="day-number">${d.getDate()}</span>${singles.slice(0,2).map(e=>`<span class="event-chip ${e.type}" ${e.type==='group'?`style="${groupColorStyle(groupById(e.group))}"`:''}>${e.type==='group'?`<span class="chip-group-name">${escapeHTML(groupLabel(e.group))}</span>`:''}${escapeHTML(e.title)}</span>`).join('')}${singles.length>2?`<span class="more-events">+${singles.length-2}개</span>`:''}</button>`;}).join('');
-    html+=segments.map(({event:e,start,end,lane})=>`<button class="span-event ${e.type} ${e.date<dates[0]?'continues-before':''} ${eventEnd(e)>dates[6]?'continues-after':''}" data-span-event="${escapeHTML(e.id)}" style="grid-column:${start+1} / ${end+2};grid-row:${lane+2};${e.type==='group'?groupColorStyle(groupById(e.group)):''}" title="${escapeHTML(eventRange(e))}" aria-label="${escapeHTML(e.title+' · '+eventRange(e))}">${e.date<dates[0]?'‹ ':''}${e.type==='group'?escapeHTML(groupLabel(e.group))+' · ':''}${escapeHTML(e.title)}${eventEnd(e)>dates[6]?' ›':''}</button>`).join('');
+    const segments=weekSegments(dates,matching);
+    const shown=segments.filter(s=>s.lane<limit);
+    html+=`<div class="mobile-calendar-week" style="grid-template-rows:minmax(24px,32px) ${limit?`repeat(${limit},22px) `:''}minmax(0,1fr)">`;
+    for(let i=0;i<7;i++){
+      const k=dates[i],date=parseDate(k),daily=matching.filter(e=>occursOn(e,k));
+      const occupied=new Set(shown.filter(s=>s.start<=i&&s.end>=i).map(s=>s.lane));
+      const singles=daily.filter(e=>eventEnd(e)===e.date).sort((a,b)=>Number(b.allDay)-Number(a.allDay)||a.time.localeCompare(b.time));
+      const free=Array.from({length:limit},(_,lane)=>lane).filter(lane=>!occupied.has(lane));
+      const visible=singles.slice(0,free.length),hidden=daily.length-occupied.size-visible.length;
+      html+=`<button class="day mobile-day ${hidden?'has-overflow':''} ${date.getMonth()!==month.getMonth()?'other':''} ${k===selected?'selected':''} ${k===key?'is-today':''}" style="grid-column:${i+1};grid-row:1 / -1" data-date="${k}" aria-pressed="${k===selected}" aria-label="${k}, 일정 ${daily.length}개"><span class="day-number">${date.getDate()}</span>${visible.map((e,n)=>`<span class="event-chip ${e.type}" style="position:absolute;top:${32+free[n]*22}px;left:2px;right:2px;${e.type==='group'?groupColorStyle(groupById(e.group)):''}">${escapeHTML(e.title)}</span>`).join('')}${hidden?`<span class="more-events">+${hidden}개</span>`:''}</button>`;
+    }
+    html+=shown.map(({event:e,start,end,lane})=>`<button class="span-event ${e.type} ${e.date<dates[0]?'continues-before':''} ${eventEnd(e)>dates[6]?'continues-after':''}" data-span-event="${escapeHTML(e.id)}" style="grid-column:${start+1} / ${end+2};grid-row:${lane+2};${e.type==='group'?groupColorStyle(groupById(e.group)):''}" title="${escapeHTML(e.title+' · '+eventRange(e))}" aria-label="${escapeHTML(e.title+' · '+eventRange(e))}">${escapeHTML(e.title)}</button>`).join('');
     html+='</div>';
   }
   return html;
 }
+function openDaySheet(){
+  const sheet=document.querySelector('#mobile-day-sheet');
+  sheet.querySelector('h2').textContent=$('#selected-date').textContent;
+  sheet.querySelector('.day-sheet-list').innerHTML=$('#agenda').innerHTML;
+  sheet.showModal();
+}
+window.renderMoaCalendar=render;
 
+$('#mobile-day-sheet').addEventListener('click',e=>{
+ const item=e.target.closest('[data-event]');if(item){$('#mobile-day-sheet').close();openEvent(item.dataset.event);}
+});
+$('#day-sheet-add').addEventListener('click',()=>{$('#mobile-day-sheet').close();openEvent();});
 
-
-window.applySharedGroups(window.moaSharing.groups);
+window.moaPersonalData={
+ read:()=>({habits,timetable,checks,events}),
+ update:patch=>{
+  if(patch.habits)habits=patch.habits;
+  if(patch.timetable)timetable=patch.timetable;
+  if(patch.checks)checks=patch.checks;
+  save();render();
+ },
+ openHobbyEvent:id=>{
+  openEvent(id||null);
+  if(!id){$('#event-form').elements.type.value='hobby';$('#group-field').hidden=true;syncVisibility();}
+ }
+};

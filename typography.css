@@ -1,0 +1,3 @@
+/* Shared Korean typography, including browser form controls and dialogs. */
+:root { --font-ui: "Pretendard", -apple-system, BlinkMacSystemFont, sans-serif; font-family: var(--font-ui); }
+body, button, input, select, textarea, option, optgroup { font-family: var(--font-ui); }

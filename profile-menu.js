@@ -5,8 +5,6 @@ export function setupProfileMenu(client) {
   const logout = document.querySelector('#profile-logout');
   const error = document.querySelector('#profile-menu-error');
   function show(open) { options.hidden = !open; toggle.setAttribute('aria-expanded', String(open)); }
-  wrapper.addEventListener('pointerenter', event => { if(event.pointerType === 'mouse') show(true); });
-  wrapper.addEventListener('pointerleave', () => { if(!wrapper.contains(document.activeElement)) show(false); });
   toggle.addEventListener('click', () => show(options.hidden));
   toggle.addEventListener('keydown', event => {
     if(event.key === 'ArrowDown') { event.preventDefault(); show(true); options.querySelector('a').focus(); }

@@ -4,10 +4,10 @@
 [data-theme="dark"] :is(.topbar,.calendar-panel,.panel,.group-card,.group-list-card,.memory-card,dialog,.group-context-menu){background:#282520;border-color:var(--line);color:#ede5d8}
 [data-theme="dark"] :is(h1,h2,.wordmark,.topbar strong,.group-card-title>strong){color:#eee5d7}
 [data-theme="dark"] :is(.nav-item,.sidebar-caption,.nav-label,.side-note p,.side-note>span:last-child,.profile small,.topbar,.eyebrow,.greeting p:last-child,.subtle,.summary-item p,.summary-item strong small,.agenda-time,.agenda-detail small,.calendar-footer,.month-view,.filter,.legend-item,.small-label,.page-footer,.group-card small,.group-card-description,.group-card-meta,.group-next small,.group-next>span,.group-local-note,.dialog-intro,.optional,.invite-disclosure,.memory-copy>small,.memory-period,.memory-caption,.photo-upload small,.edit-color-label,.brand-description,.brand-footer,.text-button,.remember,.signup,footer){color:#b9ad9d}
-[data-theme="dark"] :is(.summary,.hobby-panel,.side-note,.calendar-panel .weekdays,.calendar-week .day.other){background:#24221e}
+[data-theme="dark"] :is(.summary,.hobby-panel,.side-note,.calendar-panel .weekdays,:is(.calendar-week,.mobile-calendar-week) .day.other){background:#24221e}
 [data-theme="dark"] .calendar-panel .weekdays{color:#bbae98}
-[data-theme="dark"] .calendar-week .day.other{color:#908777}
-[data-theme="dark"] :is(.nav-item.active,.filter.active,.calendar-week .day.selected){background:#473225;color:#f1b58c;border-color:#795137}
+[data-theme="dark"] :is(.calendar-week,.mobile-calendar-week) .day.other{color:#908777}
+[data-theme="dark"] :is(.nav-item.active,.filter.active,:is(.calendar-week,.mobile-calendar-week) .day.selected){background:#473225;color:#f1b58c;border-color:#795137}
 [data-theme="dark"] .primary,[data-theme="dark"] .is-today .day-number{background:#bc592f;color:#fff9f2}
 [data-theme="dark"] .primary:hover{background:#cc683e}
 [data-theme="dark"] :is(.theme-toggle,.outline,.add-inline,.hobby-info button,.group-tag,.group-more,.member-badge,.count,.avatar){background:#383026;border-color:#67523d;color:#e4bf98}

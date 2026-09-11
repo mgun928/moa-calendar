@@ -28,7 +28,7 @@
     clearUrls('cards');
     const relevant = events.filter(e => e.type === 'group' && (!activeGroup || e.group === activeGroup) && (ended(e) || e.date <= dateKey(new Date()) || records.has(e.id)))
       .sort((a,b) => eventEnd(b).localeCompare(eventEnd(a)));
-    el('#memory-section').hidden = groupHub || !['all', 'group'].includes(filter) || !relevant.length;
+    el('#memory-section').hidden = filter !== 'memories' && (groupHub || !['all', 'group'].includes(filter) || !relevant.length);
     el('#memory-count').textContent = `${relevant.filter(e => records.get(e.id)?.photos.length).length}개의 추억`;
     el('#memory-status').textContent = unavailable ? '사진 저장소를 열지 못했어요. 브라우저의 저장 허용 여부를 확인한 뒤 새로고침해 주세요.' : ready ? '' : '추억을 불러오고 있어요…';
     el('#memory-cards').innerHTML = relevant.map(e => {
@@ -37,6 +37,7 @@
         <span class="memory-cover">${photos.length ? `<img src="${photoUrl(photos[0].blob, 'cards')}" alt="${escapeHTML(e.title)} 대표 사진"><span class="photo-count">사진 ${photos.length}장</span>` : `<span class="memory-placeholder" aria-hidden="true">${ended(e) ? '▧' : '＋'}</span><span>${ended(e) ? '함께한 순간을 남겨볼까요?' : '지금의 순간을 담아보세요'}</span>`}</span>
         <span class="memory-copy"><small>${escapeHTML(groupLabel(e.group))} · ${photos.length ? '추억 카드' : ended(e) ? '일정 완료' : '진행 중'}</small><strong>${escapeHTML(e.title)}</strong><span class="memory-period">${escapeHTML(e.date)}${eventEnd(e) !== e.date ? ` ~ ${escapeHTML(eventEnd(e))}` : ''}</span>${memory?.note ? `<span class="memory-caption">${escapeHTML(memory.note)}</span>` : ''}<span class="memory-action">${photos.length ? '추억 펼쳐보기' : '사진과 추억 남기기'} ↗</span></span></button>`;
     }).join('');
+    if(filter==='memories'&&!relevant.length)el('#memory-cards').innerHTML='<p class=empty>아직 남길 추억이 없어요. 그룹 일정이 시작되면 사진을 모을 수 있어요.</p>';
     // Remove images belonging to deleted events, including deleted groups.
     if (ready) for (const id of records.keys()) {
       if (!events.some(e => e.id === id)) {

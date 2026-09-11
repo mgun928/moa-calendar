@@ -101,3 +101,18 @@ test('load failure never creates or overwrites data, stopped store does not save
   await tick();
   assert.deepEqual(db.rows.get('a').data.events, []);
 });
+
+test('private timetable and legacy hobby records persist across reopened accounts', async () => {
+ const db=database();
+ const store=await openCalendarStore(db,'owner',null);
+ const saved={...empty(),checks:{'reading:2026-09-11':true},habits:[{id:'reading',title:'독서',target:5}],timetable:{entries:[{id:'tt',title:'운동',day:0,start:570,end:660,color:'#bc8158'}],start:480,end:1320,weekend:false}};
+ store.save(saved);await tick();await tick();
+ store.stop();
+ const reopened=await openCalendarStore(db,'owner',null);
+ assert.deepEqual(reopened.initial,saved);
+ assert.equal((await openCalendarStore(db,'other',null)).initial.timetable,undefined);
+ const next={...reopened.initial,events:[event('calendar-event')]};
+ reopened.save(next);await tick();await tick();
+ assert.deepEqual(db.rows.get('owner').data.timetable,saved.timetable);
+ assert.equal(db.rows.get('owner').data.checks['reading:2026-09-11'],true);
+});

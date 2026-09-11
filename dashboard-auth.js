@@ -1,7 +1,10 @@
+import { setupPersonalTools } from './personal-tools.js?v=full-profile-3-weekly-tools-2';
+import { setupFriends } from './friends.js?v=full-profile-3';
 import { authReady } from './auth.js';
 import { openCalendarStore } from './calendar-store.js';
 import { setupGroupSharing } from './group-sharing.js';
 import { setupProfileMenu } from './profile-menu.js';
+import { setupMobileDashboard } from './mobile-dashboard.js?v=mobile-friends-1';
 
 
 async function loadScript(src) {
@@ -25,6 +28,7 @@ try {
       if (event === 'SIGNED_OUT' || (session && session.user.id !== window.moaUserId)) {
         window.moaCalendarStore?.stop();
         window.moaSharing?.stop();
+        window.moaFriends?.stop();
         document.body.style.visibility = 'hidden';
         location.replace('index.html');
       }
@@ -51,14 +55,18 @@ try {
         conflict: '다른 화면에서 일정이 변경됐어요. 현재 변경은 저장되지 않았어요. 새로고침 후 다시 수정해주세요.',
       }[state];
       retry.hidden = state !== 'error';
+      document.dispatchEvent(new CustomEvent('moa-save-status',{detail:{state,message:label.textContent}}));
     });
     label.textContent = '';
     window.addEventListener('beforeunload', event => {
       if (window.moaCalendarStore.hasPending()) { event.preventDefault(); event.returnValue = ''; }
     });
     window.moaSharing = await setupGroupSharing(client);
-    await loadScript('dashboard.js');
-    await loadScript('memories.js');
+    await loadScript('dashboard.js?v=weekly-tools-1');
+    window.moaFriends=setupFriends(client,data.user.id);
+    setupPersonalTools();
+    setupMobileDashboard();
+    await loadScript('memories.js?v=friends-1');
 
 
     const savedNickname = data.user.user_metadata?.nickname;
@@ -79,4 +87,3 @@ try {
   document.body.append(message, link);
   document.body.style.visibility = 'visible';
 }
-

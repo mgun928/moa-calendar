@@ -125,6 +125,80 @@ document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',(
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.filter,'',false)));
 $('#groups').addEventListener('click',e=>{const b=e.target.closest('[data-group]');if(b){setView('group',b.dataset.group);$('.calendar-panel').scrollIntoView({block:'start'});}});
 $('#prev-month').addEventListener('click',()=>{month.setMonth(month.getMonth()-1);render();});
+// A modal month picker keeps the calendar's layout unchanged.
+const monthTitle=$('#month-title');
+monthTitle.setAttribute('role','button');
+monthTitle.setAttribute('tabindex','0');
+monthTitle.setAttribute('aria-haspopup','dialog');
+monthTitle.setAttribute('aria-label','연도와 월 선택');
+const monthPicker=document.createElement('dialog');
+monthPicker.className='month-picker';
+monthPicker.setAttribute('aria-labelledby','month-picker-heading');
+monthPicker.innerHTML='<div class="month-picker-heading"><h2 id="month-picker-heading">연도와 월 선택</h2><button type="button" class="icon-button" aria-label="닫기">×</button></div><label class="month-picker-year"><span>연도</span><input type="number" min="1900" max="9999" step="1" inputmode="numeric" aria-label="연도"></label><div class="month-picker-year"><span>월</span><div class="month-picker-wheel" tabindex="0" role="slider" aria-label="월 선택, 좌우로 드래그하거나 방향키로 변경" aria-valuemin="1" aria-valuemax="12"><span class="month-wheel-arrow left" aria-hidden="true">‹</span><div class="month-picker-track">'+Array.from({length:12},(_,i)=>`<div>${i+1}월</div>`).join('')+'</div><span class="month-wheel-arrow right" aria-hidden="true">›</span></div></div><p class="month-picker-hint">좌우로 밀어 월을 선택하세요</p><button type="button" class="primary month-picker-apply">이동하기</button>';
+document.body.append(monthPicker);
+const pickerYear=monthPicker.querySelector('input');
+const monthWheel=monthPicker.querySelector('.month-picker-wheel'),monthTrack=monthPicker.querySelector('.month-picker-track');
+let pickerMonth=0,monthDrag=null;
+function paintPickerMonth(offset=0){
+ monthTrack.style.transform=`translateX(calc(${-pickerMonth*100}% + ${offset}px))`;
+ monthWheel.setAttribute('aria-valuenow',String(pickerMonth+1));
+ monthWheel.setAttribute('aria-valuetext',`${pickerMonth+1}월`);
+}
+monthWheel.addEventListener('pointerdown',e=>{
+ if(!e.isPrimary||e.button!==0||monthPicker.classList.contains('is-closing'))return;
+ monthDrag={id:e.pointerId,x:e.clientX,dx:0};monthWheel.setPointerCapture(e.pointerId);monthWheel.classList.add('dragging');
+});
+monthWheel.addEventListener('pointermove',e=>{
+ if(!monthDrag||monthDrag.id!==e.pointerId)return;
+ monthDrag.dx=e.clientX-monthDrag.x;
+ const dx=monthDrag.dx,edge=(pickerMonth===0&&dx>0)||(pickerMonth===11&&dx<0);
+ paintPickerMonth(edge?dx*.2:dx);
+});
+function endMonthDrag(e){
+ if(!monthDrag||monthDrag.id!==e.pointerId)return;
+ const dx=monthDrag.dx;
+ if(e.type!=='pointercancel'){
+  let step=Math.abs(dx)>40?-Math.sign(dx)*Math.max(1,Math.round(Math.abs(dx)/monthWheel.clientWidth)):0;
+  if(Math.abs(dx)<5){const x=e.clientX-monthWheel.getBoundingClientRect().left;if(x<36)step=-1;else if(x>monthWheel.clientWidth-36)step=1;}
+  pickerMonth=Math.max(0,Math.min(11,pickerMonth+step));
+ }
+ monthDrag=null;monthWheel.classList.remove('dragging');paintPickerMonth();
+}
+monthWheel.addEventListener('pointerup',endMonthDrag);
+monthWheel.addEventListener('pointercancel',endMonthDrag);
+monthWheel.addEventListener('keydown',e=>{
+ if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+ e.preventDefault();pickerMonth=e.key==='Home'?0:e.key==='End'?11:Math.max(0,Math.min(11,pickerMonth+(e.key==='ArrowRight'?1:-1)));paintPickerMonth();
+});
+function closeMonthPicker(){
+ if(!monthPicker.open||monthPicker.classList.contains('is-closing'))return;
+ if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){monthPicker.close();return;}
+ monthPicker.classList.add('is-closing');
+ setTimeout(()=>{monthPicker.close();monthPicker.classList.remove('is-closing');},180);
+}
+monthPicker.addEventListener('cancel',e=>{e.preventDefault();closeMonthPicker();});
+let applyPickedMonth;
+function openMonthPicker(initial=month,onSelect=value=>{month=value;selected=dateKey(month);render();}){
+ if(monthPicker.open)return;
+ applyPickedMonth=onSelect;
+ pickerYear.value=initial.getFullYear();
+ pickerMonth=initial.getMonth();paintPickerMonth();
+ monthPicker.showModal();
+ monthWheel.focus();
+}
+window.moaOpenMonthPicker=openMonthPicker;
+monthTitle.addEventListener('click',()=>openMonthPicker());
+monthTitle.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openMonthPicker();}});
+monthPicker.addEventListener('click',e=>{
+ if(monthPicker.classList.contains('is-closing'))return;
+ const choice=e.target.closest('.month-picker-apply');
+ if(choice){
+  if(!pickerYear.value||!pickerYear.reportValidity())return;
+  applyPickedMonth(new Date(Number(pickerYear.value),pickerMonth,1));
+  closeMonthPicker();
+ }else if(e.target.closest('[aria-label="닫기"]'))closeMonthPicker();
+ else if(e.target===monthPicker){const r=monthPicker.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeMonthPicker();}
+});
 $('#next-month').addEventListener('click',()=>{month.setMonth(month.getMonth()+1);render();});
 $('#today').addEventListener('click',()=>{month=new Date(today.getFullYear(),today.getMonth(),1);selected=key;render();});
 $('#add-event').addEventListener('click',()=>openEvent());$('#add-selected').addEventListener('click',()=>openEvent());
@@ -217,10 +291,10 @@ $('#group-form').addEventListener('submit',async e=>{
     if(existing?.shared){
       await window.moaSharing.mutate('update',{group_id:existing.id,version:existing.version,info:{name:f.groupName.value.trim(),description:f.description.value.trim(),color}});
     }else{
-      const recipients=parseInvites(f.emails.value);
-      const g=createGroupRecord(f.groupName.value,f.description.value,color,f.emails.value,editingGroup);
+      const recipients=$('#creation-invites').hidden?[]:[...groupFriendSelection];
+      const g=createGroupRecord(f.groupName.value,f.description.value,color,'',editingGroup);
       editingGroup=g.id;save();
-      if(recipients.length)await inviteToGroup(g.id,recipients);
+      if(recipients.length){await waitForPrivateSave();await window.moaSharing.inviteFriends(g.id,recipients);save();}
       else await waitForPrivateSave();
     }
     $('#group-dialog').close();setView(filter,activeGroup,groupHub);notify('그룹을 저장했어요.');
@@ -266,11 +340,31 @@ $('#edit-group-color').addEventListener('change',async e=>{
  group.color=e.target.value;save();render();
 });
 
+let groupFriendSelection=new Set(),groupFriendPeople=[],groupFriendRequest=0;
+function renderGroupFriends(){
+ const query=$('#group-friend-search').value.trim().toLocaleLowerCase();
+ const people=groupFriendPeople.filter(p=>p.nickname.toLocaleLowerCase().includes(query));
+ $('#group-friend-options').innerHTML=people.map(p=>`<label class="group-friend-option"><input type="checkbox" value="${escapeHTML(p.id)}" ${groupFriendSelection.has(p.id)?'checked':''}><span>${escapeHTML(p.nickname)}</span></label>`).join('')||'<p class="subtle">'+(groupFriendPeople.length?'검색한 친구가 없어요.':'등록된 친구가 없어요. 친구를 추가한 뒤 초대할 수 있어요.')+'</p>';
+}
+async function loadGroupFriends(){
+ const request=++groupFriendRequest;groupFriendSelection.clear();groupFriendPeople=[];
+ $('#group-friend-options').textContent='친구 목록을 불러오는 중…';
+ try{const people=await window.moaSharing.listFriends();if(request!==groupFriendRequest)return;groupFriendPeople=people;renderGroupFriends();}
+ catch(error){if(request===groupFriendRequest)$('#group-friend-options').textContent=error.message;}
+}
+$('#group-friend-search').addEventListener('input',renderGroupFriends);
+$('#group-friend-search').addEventListener('keydown',e=>{if(e.key==='Enter')e.preventDefault();});
+$('#group-friend-options').addEventListener('change',e=>{
+ if(!e.target.matches('input[type="checkbox"]'))return;
+ if(e.target.checked&&groupFriendSelection.size>=20){e.target.checked=false;showFormError('#group-error','한 번에 20명까지 초대할 수 있어요.');return;}
+ if(e.target.checked)groupFriendSelection.add(e.target.value);else groupFriendSelection.delete(e.target.value);
+});
 function openGroupEditor(id=null){
   editingGroup=id;const form=$('#group-form');form.reset();$('#group-error').hidden=true;
-  const g=groupById(id);$('#group-dialog-title').textContent=g?'그룹 수정':'우리의 새로운 공간';
+  const g=groupById(id);$('#group-dialog-title').textContent=g?'그룹 수정':'그룹 만들기';
   $('#save-group').textContent=g?'변경 사항 저장':'그룹 만들기 →';$('#creation-invites').hidden=!!g;
   if(g){form.elements.groupName.value=g.name;form.elements.description.value=g.description;form.elements.color.value=Object.hasOwn(groupPalette,g.color)?g.color:'custom';form.elements.customColor.value=groupPalette[g.color]||g.color;}
+  if(!g)void loadGroupFriends();
   $('#group-dialog').showModal();
 }
 function closeGroupMenu(restore=false){$('#group-context-menu').hidden=true;if(restore&&menuTrigger?.isConnected)menuTrigger.focus();}

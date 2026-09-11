@@ -75,6 +75,16 @@ export async function setupGroupSharing(client) {
   await refresh();
   return {
     get groups() { return groups; }, call, refresh,
+    async listFriends(){
+      const {data,error}=await client.rpc('moa_friends',{action:'list'});
+      if(error)throw new Error('친구 목록을 불러오지 못했어요. 다시 열어주세요.');
+      return (data||[]).filter(person=>person.status==='accepted');
+    },
+    async inviteFriends(groupId,friendIds){
+      const {error}=await client.rpc('moa_invite_group_friends',{group_id:groupId,friend_ids:friendIds});
+      if(error)throw new Error(error.code==='PGRST202'?'친구 초대 DB 설정이 필요해요. GROUP-FRIEND-INVITES-GUIDE.md를 확인해주세요.':error.message);
+      await refresh(true);
+    },
     async mutate(action, payload) { await call(action, payload); await refresh(true); },
     stop() { stopped = true; clearInterval(timer); window.removeEventListener('focus', onFocus); },
   };

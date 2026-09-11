@@ -77,6 +77,9 @@
 .create-plus{display:grid;place-items:center;flex-shrink:0;width:53px;height:53px;font-size:29px;background:#e9dfcf;border-radius:14px;color:#a6754b}
 .create-group-card strong{display:block;font-size:18px;font-weight:600;color:#65513c;letter-spacing:-.5px}
 .create-group-card small{display:block;font-size:14px;line-height:1.7;margin-top:8px;color:#968773}
+.create-group-card>span:nth-child(2){flex:1;min-width:0}
+.create-group-card small{word-break:keep-all;overflow-wrap:break-word}
+.create-group-card>.create-plus,.create-group-card>.create-arrow{flex-shrink:0}
 .create-arrow{font-size:26px;margin-left:auto;color:#b49773}
 .group-list-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:19px;gap:15px}
 .group-list-heading h2{font-size:18px}.group-list-heading .count{margin-left:7px;vertical-align:middle}.group-list-heading .subtle{font-size:14px;margin-bottom:0}
@@ -722,3 +725,50 @@ dialog.delete-confirm{position:fixed;inset:0;margin:auto;width:min(360px,calc(10
 .delete-confirm p{font-size:14px;line-height:1.7;overflow-wrap:anywhere;margin:0 0 24px}
 .delete-confirm-actions{display:flex;gap:10px}
 .delete-confirm-actions button{flex:1;min-height:44px;padding:10px;font-size:14px}
+
+#month-title[role="button"]{cursor:pointer;border-radius:8px}
+#month-title[role="button"]:focus-visible{outline:2px solid var(--orange);outline-offset:5px}
+dialog.month-picker{position:fixed;inset:0;margin:auto;width:min(360px,calc(100% - 32px));max-height:85dvh;overflow:auto;padding:24px;border-radius:20px;border:1px solid var(--line);background:#faf9f6;color:#302e29;box-shadow:0 16px 60px #0003}
+.month-picker[open]{animation:month-picker-in .2s ease-out}
+.month-picker::backdrop{background:#0006;animation:month-picker-backdrop .2s ease-out}
+.month-picker-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.month-picker-heading h2{font-size:20px;margin:0}
+.month-picker-year{display:flex;align-items:center;gap:16px;margin-bottom:20px;font-weight:600}
+.month-picker-year input{min-width:0;width:100%;font-size:20px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit}
+.month-picker-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.month-picker-grid button{min-height:44px;font-size:16px;border-radius:10px}
+.month-picker-grid button[aria-pressed="true"]{background:var(--orange);border-color:var(--orange);color:#fff}
+[data-theme="dark"] dialog.month-picker{background:#282520;color:#eee6d8}
+@keyframes month-picker-in{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes month-picker-backdrop{from{opacity:0}to{opacity:1}}
+.month-picker[open].is-closing{animation:month-picker-out .18s ease-in forwards}
+.month-picker.is-closing::backdrop{animation:month-picker-backdrop .18s ease-in reverse forwards}
+@keyframes month-picker-out{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(12px) scale(.97)}}
+@media(prefers-reduced-motion:reduce){.month-picker[open],.month-picker::backdrop,.month-picker[open].is-closing,.month-picker.is-closing::backdrop{animation:none}}
+.month-picker-year{display:grid;grid-template-columns:38px minmax(0,1fr);gap:12px;margin-bottom:16px}
+.month-picker-year>span{white-space:nowrap;font-size:15px}
+.month-picker-year input,.month-picker-wheel{height:56px;border:1px solid var(--line);border-radius:12px;background:transparent;font-size:22px;font-weight:600}
+.month-picker-wheel{position:relative;overflow:hidden;touch-action:pan-y;cursor:grab;user-select:none}
+.month-picker-wheel.dragging{cursor:grabbing}
+.month-picker-track{display:flex;height:100%;transition:transform .24s cubic-bezier(.22,.7,.25,1);will-change:transform}
+.month-picker-track>div{flex:0 0 100%;display:flex;align-items:center;justify-content:center}
+.month-picker-wheel.dragging .month-picker-track{transition:none}
+.month-wheel-arrow{position:absolute;top:0;height:100%;display:flex;align-items:center;color:var(--muted);font-size:22px;z-index:1;pointer-events:none}
+.month-wheel-arrow.left{left:12px}.month-wheel-arrow.right{right:12px}
+.month-picker-hint{font-size:12px;color:var(--muted);text-align:center;margin:0 0 22px 50px}
+.month-picker-apply{width:100%;min-height:46px;border-radius:12px}
+@media(prefers-reduced-motion:reduce){.month-picker-track{transition:none}}
+#friend-month-title[role="button"]{cursor:pointer;border-radius:8px}
+#friend-month-title[role="button"]:focus-visible{outline:2px solid var(--orange);outline-offset:5px}
+#group-friend-options{max-height:210px;overflow:auto;margin-top:12px;overscroll-behavior:contain}
+#group-form .group-friend-option{display:flex;align-items:center;gap:12px;padding:12px 8px;margin:0;border-bottom:1px solid var(--line);cursor:pointer}
+#group-form .group-friend-option input{width:20px;height:20px;margin:0;flex:none;accent-color:var(--orange)}
+#group-form .group-friend-option span{font-size:16px;overflow-wrap:anywhere}
+@media(max-width:640px){
+ #group-dialog{width:calc(100% - 24px);max-height:calc(100dvh - 24px);padding:22px 20px;border-radius:18px}
+ #group-dialog-title{font-size:23px;line-height:1.35}
+ #group-form>label,#group-form legend,#creation-invites>label{font-size:16px}
+ #group-form input:not([type="checkbox"]):not([type="radio"]):not([type="color"]){font-size:16px;min-height:48px}
+ #group-form .optional,#group-form .invite-disclosure{font-size:13px;line-height:1.6}
+ #group-form .dialog-actions button{font-size:16px;min-height:46px}
+}

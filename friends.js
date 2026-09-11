@@ -9,10 +9,10 @@ export function setupFriends(client,userId){
  <p id="friend-status" role="status"></p>
  <div class="friend-request-group"><h2>받은 요청</h2><div id="friend-incoming"></div></div><div class="friend-request-group"><h2>보낸 요청</h2><div id="friend-outgoing"></div></div>
  <div class="friend-list-group"><h2>친구 목록</h2><div id="friend-list"></div></div>
- <dialog id="friend-profile"><button type="button" class="outline friend-mobile-only" id="friend-back">← 친구 목록</button><div class="friend-profile-heading"><h2 id="friend-name"></h2><button type="button" class="outline" id="friend-profile-remove" data-friend-action="remove">친구 삭제</button></div><p>친구에게 공개한 일정 · 읽기 전용</p><div class="friend-month"><button type="button" data-month="-1" aria-label="친구 이전 달">‹</button><h2 id="friend-month-title"></h2><button type="button" data-month="1" aria-label="친구 다음 달">›</button></div><div id="friend-calendar"></div></dialog><dialog id="friend-day-dialog" aria-label="친구 날짜별 일정"><header class="section-heading"><h2 id="friend-day-title"></h2><button type="button" id="friend-day-close" class="icon-button" aria-label="일정 목록 닫기">×</button></header><div id="friend-day" aria-live="polite"></div></dialog>`;
+ <dialog id="friend-profile"><button type="button" class="outline friend-mobile-only" id="friend-back">← 친구 목록</button><div class="friend-profile-heading"><h2 id="friend-name"></h2><button type="button" class="outline" id="friend-profile-remove" data-friend-action="remove">친구 삭제</button></div><p>친구에게 공개한 일정 · 읽기 전용</p><div class="friend-month"><button type="button" data-month="-1" aria-label="친구 이전 달">‹</button><h2 id="friend-month-title" role="button" tabindex="0" aria-haspopup="dialog" aria-label="친구 캘린더 연도와 월 선택"></h2><button type="button" data-month="1" aria-label="친구 다음 달">›</button></div><div id="friend-calendar"></div></dialog><dialog id="friend-day-dialog" aria-label="친구 날짜별 일정"><header class="section-heading"><h2 id="friend-day-title"></h2><button type="button" id="friend-day-close" class="icon-button" aria-label="일정 목록 닫기">×</button></header><div id="friend-day" aria-live="polite"></div></dialog>`;
  document.querySelector('.page-footer').before(root);
  const $=s=>root.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const viewer=setupFriendViewer(root,client,()=>selected);
+ const viewer=setupFriendViewer(root,client,()=>selected,delta=>navigateMonth(new Date(month.getFullYear(),month.getMonth()+delta,1),delta));
  let ownCode='';
  async function loadOwnCode(){
   if(ownCode)return;
@@ -28,10 +28,10 @@ export function setupFriends(client,userId){
  for(const type of ['pointerdown','pointermove','pointerup'])$('#friend-day-dialog').addEventListener(type,e=>e.stopPropagation());
  $('#friend-day-close').addEventListener('click',()=>$('#friend-day-dialog').close());
  $('#friend-day-dialog').addEventListener('click',e=>{if(e.target===$('#friend-day-dialog'))$('#friend-day-dialog').close();});
- let selected=null,month=new Date(new Date().getFullYear(),new Date().getMonth(),1),entries=[],generation=0,busy=false,stopped=false;
+ let selected=null,month=new Date(new Date().getFullYear(),new Date().getMonth(),1),entries=[],generation=0,busy=false,stopped=false,navigating=false;
  const status=message=>$('#friend-status').textContent=message;
- async function call(action,target=null){
-  const {data,error}=await client.rpc('moa_friends',{action,target,month_start:`${month.getFullYear()}-${String(month.getMonth()+1).padStart(2,'0')}-01`});
+ async function call(action,target=null,requestedMonth=month){
+  const {data,error}=await client.rpc('moa_friends',{action,target,month_start:`${requestedMonth.getFullYear()}-${String(requestedMonth.getMonth()+1).padStart(2,'0')}-01`});
   if(error)throw new Error(error.code==='PGRST202'?'친구 기능 DB 설정이 필요해요. FRIENDS-GUIDE의 SQL을 적용해주세요.':error.message);
   return data;
  }
@@ -52,8 +52,8 @@ export function setupFriends(client,userId){
  });
  $('#friend-back').addEventListener('click',()=>{selected=null;generation++;clearCalendar();$('#friend-profile').close();$('#friend-list').scrollIntoView({block:'nearest'});});
  async function refresh(){
-  if(stopped)return;
-  const version=++generation;clearCalendar();viewer.clear();
+  if(stopped||navigating||viewer.isTransitioning())return;
+  const version=++generation;
   try{
    const people=await call('list');if(version!==generation)return;
    $('#friend-incoming').innerHTML=people.filter(p=>p.status==='pending'&&p.incoming).map(p=>row(p,button('수락','accept',p.id)+button('거절','decline',p.id))).join('')||'<p>받은 요청이 없어요.</p>';
@@ -66,9 +66,24 @@ export function setupFriends(client,userId){
     $('#friend-profile-remove').dataset.id=person.id;
     const data=await call('calendar',selected);if(version!==generation)return;
     entries=data;renderCalendar();if($('#friend-day-dialog').open)renderDay();await viewer.refresh();
-   }else selected=null;
+   }else {selected=null;clearCalendar();}
    status('');
   }catch(error){if(version===generation){clearCalendar();status(error.message);}}
+ }
+ async function navigateMonth(target,direction){
+  if(stopped||navigating||!selected)return;
+  navigating=true;
+  const version=++generation,id=selected;
+  try{
+   // Fetch first: the visible month stays intact during network latency.
+   const data=await call('calendar',id,target);
+   if(version!==generation||id!==selected||!$('#friend-profile').open)return;
+   await viewer.animateMonth(()=>{
+    if(version!==generation||id!==selected)return;
+    month=target;entries=data;renderCalendar();status('');
+   },direction);
+  }catch(error){if(version===generation){clearCalendar();status(error.message);}}
+  finally{navigating=false;}
  }
  function renderCalendar(){
   const y=month.getFullYear(),m=month.getMonth(),prefix=`${y}-${String(m+1).padStart(2,'0')}-`;
@@ -89,7 +104,7 @@ export function setupFriends(client,userId){
    }
    html+=segments.filter(s=>s.lane<2).map(({e,start,end,lane})=>`<button type="button" class="friend-span ${e.type==='group'?'group':''}" data-friend-date="${dateKey(Math.max(1,first+start))}" style="grid-column:${start+1} / ${end+2};grid-row:${lane+2};${eventColor(e)}" aria-label="${esc(e.title)} · ${esc(e.date)} ~ ${esc(e.endDate||e.date)}">${esc(e.title)}</button>`).join('')+'</div>';
   }
-  $('#friend-calendar').innerHTML=html;
+  if($('#friend-calendar').innerHTML!==html)$('#friend-calendar').innerHTML=html;
  }
  function renderDay(){
   const key=detailDate,d=new Date(key+'T12:00:00');
@@ -111,13 +126,17 @@ export function setupFriends(client,userId){
   const date=e.target.closest('[data-friend-date]');
   if(date){detailDate=date.dataset.friendDate;renderDay();if(!$('#friend-day-dialog').open)$('#friend-day-dialog').showModal();return;}
   const b=e.target.closest('[data-friend-action]');if(!b||busy)return;
-  if(b.dataset.friendAction==='profile'){selected=b.dataset.id;month=new Date(new Date().getFullYear(),new Date().getMonth(),1);viewer.open();await refresh();return;}
+  if(b.dataset.friendAction==='profile'){generation++;clearCalendar();selected=b.dataset.id;month=new Date(new Date().getFullYear(),new Date().getMonth(),1);viewer.open();await refresh();return;}
   busy=true;b.disabled=true;
   if(b.dataset.friendAction==='remove'&&b.id==='friend-profile-remove'&&!await window.moaConfirmDelete('친구를 삭제할까요? 서로의 친구 목록에서 제거됩니다.')){busy=false;b.disabled=false;return;}
   clearCalendar();
   try{await call(b.dataset.friendAction,b.dataset.id);$('#friend-result').replaceChildren();await refresh();}catch(error){status(error.message);}finally{busy=false;b.disabled=false;}
  });
- root.querySelectorAll('[data-month]').forEach(b=>b.addEventListener('click',()=>{month.setMonth(month.getMonth()+Number(b.dataset.month));void refresh();}));
+ root.querySelectorAll('[data-month]').forEach(b=>b.addEventListener('click',()=>{void navigateMonth(new Date(month.getFullYear(),month.getMonth()+Number(b.dataset.month),1),Number(b.dataset.month));}));
+ const friendMonthTitle=$('#friend-month-title');
+ const openFriendMonthPicker=()=>window.moaOpenMonthPicker(month,value=>{void navigateMonth(value,Math.sign(value-month)||1);});
+ friendMonthTitle.addEventListener('click',openFriendMonthPicker);
+ friendMonthTitle.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openFriendMonthPicker();}});
  document.addEventListener('visibilitychange',()=>{if(document.hidden){generation++;clearCalendar();}else if(!root.hidden)void refresh();});
  window.addEventListener('focus',()=>{if(!root.hidden)void refresh();});
  const timer=setInterval(()=>{if(!root.hidden&&!document.hidden&&!busy)void refresh();},10000);

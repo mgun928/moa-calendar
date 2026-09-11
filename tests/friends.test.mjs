@@ -81,3 +81,28 @@ test('friend deletion requires confirmation and cancellation makes no RPC',async
   assert.deepEqual(calls,['remove','list']);
  }finally{api.stop();}
 });
+
+test('background refresh preserves the visible calendar until the response arrives',async()=>{
+ let release,delayed=false;
+ const id='friend';
+ const {root,api}=setup(async(name,args)=>{
+  if(args.action==='list'){
+   if(delayed)await new Promise(resolve=>{release=resolve;});
+   return {data:[{id,nickname:'친구',status:'accepted'}]};
+  }
+  return {data:args.action==='calendar'?[]:{shared:false}};
+ });
+ try{
+  await root.listeners.click({target:{closest:s=>s==='[data-friend-action]'?{dataset:{friendAction:'profile',id}}:null}});
+  const calendar=root.querySelector('#friend-calendar'),original=calendar.innerHTML;
+  let writes=0,html=original;
+  Object.defineProperty(calendar,'innerHTML',{get:()=>html,set:value=>{writes++;html=value;}});
+  delayed=true;
+  const pending=api.refresh();
+  assert.equal(calendar.innerHTML,original);
+  assert.equal(writes,0);
+  release();await pending;
+  assert.equal(calendar.innerHTML,original);
+  assert.equal(writes,0,'unchanged calendar must not replace DOM');
+ }finally{api.stop();}
+});

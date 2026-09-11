@@ -1,3 +1,4 @@
+import {setupDialogMotion} from './dialog-motion.js';
 import {setupInboxMotion} from './disclosure-motion.js';
 import {setupSelectPicker} from './select-picker.js';
 import {setupDatePicker} from './date-picker.js';
@@ -76,6 +77,7 @@ try {
     setupTimePicker();
     setupDatePicker();
     setupSelectPicker();
+    setupDialogMotion();
     setupMobileDashboard();
     setupInboxMotion();
     await loadScript('memories.js?v=friends-1');

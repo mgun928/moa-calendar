@@ -894,3 +894,5 @@ dialog.moa-select-picker{width:min(380px,calc(100% - 24px));max-height:75dvh;ove
 .moa-select-options button[aria-pressed="true"]::after{content:'✓';font-size:18px;flex-shrink:0}
 .moa-select-options button:disabled{opacity:.4;cursor:default}
 [data-theme="dark"] dialog.moa-select-picker{background:#282828;color:#eee}
+
+#event-dialog[open],dialog.moa-date-picker[open]{animation:none}

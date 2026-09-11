@@ -4,8 +4,19 @@ export function setupProfileMenu(client) {
   const options = document.querySelector('#profile-options');
   const logout = document.querySelector('#profile-logout');
   const error = document.querySelector('#profile-menu-error');
-  function show(open) { options.hidden = !open; toggle.setAttribute('aria-expanded', String(open)); }
-  toggle.addEventListener('click', () => show(options.hidden));
+  let expanded=false,animation=null;
+  function show(open) {
+    if(expanded===open)return;
+    expanded=open;toggle.setAttribute('aria-expanded',String(open));
+    const style=getComputedStyle(options);
+    const from=animation?{opacity:style.opacity,transform:style.transform}:open?{opacity:0,transform:'translateY(-6px) scale(.98)'}:{opacity:1,transform:'translateY(0) scale(1)'};
+    animation?.cancel();options.hidden=false;
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches){options.hidden=!open;animation=null;return;}
+    const current=options.animate([from,open?{opacity:1,transform:'translateY(0) scale(1)'}:{opacity:0,transform:'translateY(-6px) scale(.98)'}],{duration:160,easing:'cubic-bezier(.2,.7,.25,1)',fill:'forwards'});
+    animation=current;
+    current.onfinish=()=>{if(animation!==current)return;options.hidden=!open;current.cancel();animation=null;};
+  }
+  toggle.addEventListener('click', () => show(!expanded));
   toggle.addEventListener('keydown', event => {
     if(event.key === 'ArrowDown') { event.preventDefault(); show(true); options.querySelector('a').focus(); }
   });

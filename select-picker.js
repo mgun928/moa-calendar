@@ -12,7 +12,7 @@ export function setupSelectPicker(){
    if(option.hidden)return;
    const button=document.createElement('button');button.type='button';button.textContent=option.textContent;button.disabled=option.disabled||option.parentElement.disabled;
    button.setAttribute('aria-pressed',String(option.selected));
-   button.onclick=()=>{select.value=option.value;select.dispatchEvent(new Event('input',{bubbles:true}));select.dispatchEvent(new Event('change',{bubbles:true}));dialog.close();};list.append(button);
+   button.onclick=async()=>{list.querySelectorAll('button').forEach(b=>b.disabled=true);await dialog.close();select.value=option.value;select.dispatchEvent(new Event('input',{bubbles:true}));select.dispatchEvent(new Event('change',{bubbles:true}));};list.append(button);
   });dialog.showModal();(list.querySelector('[aria-pressed="true"]')||list.querySelector('button'))?.focus();
  }
  // Keep native select values and validation, replacing only their popup interaction.

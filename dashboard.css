@@ -604,7 +604,7 @@ dialog#friend-profile[open]{display:flex;flex-direction:column;gap:10px}
 #friend-profile #friend-calendar small{font-size:11px}
 #friend-profile #friend-day{max-height:22vh;overflow:auto;flex:none}
 #friend-profile #friend-day:empty{display:none}
-.friend-table{flex:1;min-height:0;overflow:auto;scrollbar-width:none}
+.friend-table{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;touch-action:pan-y pinch-zoom;overscroll-behavior-x:none}
 #friend-profile[data-page=calendar] .friend-table,#friend-profile[data-page=timetable] .friend-month,#friend-profile[data-page=timetable] #friend-calendar,#friend-profile[data-page=timetable] #friend-day{display:none}
 .friend-table .tt-grid{min-width:0;grid-template-columns:38px repeat(7,minmax(0,1fr))}
 .friend-table .tt-slot{height:30px;box-sizing:border-box}

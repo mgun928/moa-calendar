@@ -12,7 +12,7 @@ export async function setupGroupSharing(client) {
   let groups = [], stopped = false, loading = false;
   const panel = document.createElement('details');
   panel.className = 'group-inbox';
-  panel.innerHTML = '<summary>받은 그룹 초대 <span class="inbox-count">0</span><span aria-hidden="true">⌄</span></summary><div class="inbox-popover"><div class="section-heading"><h2>받은 그룹 초대</h2><button type="button" class="outline">새로고침</button></div><p class="inbox-status" role="status"></p><div class="inbox-items"></div></div>';
+  panel.innerHTML = '<summary>받은 그룹 초대 <span class="inbox-count">0</span><svg class="inbox-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></summary><div class="inbox-popover"><div class="section-heading"><h2>받은 그룹 초대</h2><button type="button" class="outline">새로고침</button></div><p class="inbox-status" role="status"></p><div class="inbox-items"></div></div>';
   document.querySelector('.calendar-sync').append(panel);
   const status = panel.querySelector('.inbox-status');
   const items = panel.querySelector('.inbox-items');

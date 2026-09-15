@@ -18,8 +18,28 @@ export function setupSelectPicker(){
  // Keep native select values and validation, replacing only their popup interaction.
  document.querySelectorAll('select').forEach(select=>{
   select.classList.add('moa-select-source');select.setAttribute('aria-haspopup','dialog');
-  select.addEventListener('pointerdown',event=>{if(event.button!==0)return;event.preventDefault();open(select);});
-  select.addEventListener('click',event=>{event.preventDefault();open(select);});
+  let press=null,suppressClick=false;
+  // Never open under a held finger: the ensuing release can hit an option.
+  select.addEventListener('pointerdown',event=>{
+   if(event.button!==0||!event.isPrimary)return;
+   event.preventDefault();
+   press={id:event.pointerId,x:event.clientX,y:event.clientY};suppressClick=false;
+  });
+  select.addEventListener('pointermove',event=>{
+   if(press?.id!==event.pointerId)return;
+   if(Math.hypot(event.clientX-press.x,event.clientY-press.y)>10)suppressClick=true;
+  });
+  select.addEventListener('pointercancel',()=>{press=null;suppressClick=true;});
+  select.addEventListener('pointerup',event=>{
+   if(press?.id!==event.pointerId)return;
+   if(Math.hypot(event.clientX-press.x,event.clientY-press.y)>10)suppressClick=true;
+   press=null;
+  });
+  select.addEventListener('click',event=>{
+   event.preventDefault();
+   if(suppressClick&&event.detail!==0){suppressClick=false;return;}
+   open(select);
+  });
   select.addEventListener('keydown',event=>{if(['Enter',' ','ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();open(select);}});
  });
 }

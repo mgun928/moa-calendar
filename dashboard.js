@@ -66,7 +66,8 @@ function render(){
 
   renderGroups();
   const matching=visibleEvents();
-  $('#month-title').textContent=`${month.getFullYear()}.${String(month.getMonth()+1).padStart(2,'0')}`;
+  $('#month-title').textContent=`${month.getMonth()+1}월`;
+  $('#month-title').title=`${month.getFullYear()}년 ${month.getMonth()+1}월 · 연도와 월 선택`;
   const first=new Date(month.getFullYear(),month.getMonth(),1);first.setDate(first.getDate()-first.getDay());
   const cells=Math.ceil((new Date(month.getFullYear(),month.getMonth(),1).getDay()+new Date(month.getFullYear(),month.getMonth()+1,0).getDate())/7)*7;
   $('#calendar').style.setProperty('--week-count',cells/7);
@@ -76,8 +77,9 @@ function render(){
   const daily=matching.filter(e=>occursOn(e,selected)).sort((a,b)=>a.time.localeCompare(b.time));
   $('#agenda-title').textContent=selected===key?'오늘의 일정':'선택한 날의 일정';
   $('#selected-date').textContent=parseDate(selected).toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
+  if($('#daily-sheet-date'))$('#daily-sheet-date').textContent=$('#selected-date').textContent;
   $('#agenda-count').textContent=daily.length;
-  $('#agenda').innerHTML=daily.length?daily.map(e=>`<button class="agenda-item" data-event="${escapeHTML(e.id)}"><span class="agenda-time">${e.allDay?'종일':e.date===selected?e.time:eventEnd(e)===selected?(e.endTime||'종료'):'계속'}</span><span class="agenda-detail ${e.type}" ${e.type==='group'?`style="${groupColorStyle(groupById(e.group))}"`:""}><strong>${escapeHTML(e.title)}</strong>${eventEnd(e)>e.date?`<small>${escapeHTML(eventRange(e))}</small>`:""}<small>${escapeHTML(e.type==='group'?groupLabel(e.group):labels[e.type])}${e.note?` · ${escapeHTML(e.note)}`:''}</small></span></button>`).join(''):'<p class="empty">아직 정해진 일정이 없어요.<br>나를 위한 시간을 모아볼까요?</p>';
+  $('#agenda').innerHTML=daily.length?daily.map(e=>`<button class="agenda-item ${e.type}" ${e.type==='group'?`style="${groupColorStyle(groupById(e.group))}"`:""} data-event="${escapeHTML(e.id)}"><span class="agenda-time">${e.allDay?'종일':e.date===selected?e.time:eventEnd(e)===selected?(e.endTime||'종료'):'계속'}</span><span class="agenda-detail ${e.type}" ${e.type==='group'?`style="${groupColorStyle(groupById(e.group))}"`:""}><strong>${escapeHTML(e.title)}</strong>${eventEnd(e)>e.date?`<small>${escapeHTML(eventRange(e))}</small>`:""}${e.note?`<small class="agenda-note">${escapeHTML(e.note)}</small>`:''}</span>${e.type==='group'?`<span class="agenda-group-name">${escapeHTML(groupLabel(e.group))}</span>`:''}</button>`).join(''):'<p class="empty">아직 정해진 일정이 없어요.<br>나를 위한 시간을 모아볼까요?</p>';
   const completed=habits.map(h=>h.id).reduce((n,id)=>n+weekKeys().filter(k=>checks[`${id}:${k}`]).length,0);
   $('#summary').innerHTML=[['□','오늘의 일정',events.filter(e=>occursOn(e,key)).length,'개의 약속'],['♧','함께하는 그룹',userGroups.length,'개의 모임'],['❀','이번 주 취미 기록',completed,'번의 작은 실천']].map(s=>`<div class="summary-item"><span class="summary-icon" aria-hidden="true">${s[0]}</span><div><p>${s[1]}</p><strong>${s[2]}<small>${s[3]}</small></strong></div></div>`).join('');
   $('#groups').innerHTML=userGroups.map(g=>groupCard(g,true)).join('');
@@ -133,7 +135,23 @@ function openEvent(id=null){
   $('#event-memory').hidden=!event||event.type!=='group';$('#event-memory').dataset.event=id||'';
   $('#group-field').hidden=form.elements.type.value!=='group';$('#event-dialog').showModal();
 }
-$('#calendar').addEventListener('click',e=>{const eventButton=e.target.closest('[data-span-event]');if(eventButton){openEvent(eventButton.dataset.spanEvent);return;}const b=e.target.closest('[data-date]');if(b){selected=b.dataset.date;month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);render();}});
+let lastDateClick=null;
+$('#calendar').addEventListener('click',e=>{
+ const eventButton=e.target.closest('[data-span-event]');
+ if(eventButton){lastDateClick=null;openEvent(eventButton.dataset.spanEvent);return;}
+ const b=e.target.closest('[data-date]');if(!b)return;
+ const now=performance.now(),date=b.dataset.date;
+ const doubleClick=lastDateClick?.date===date&&now-lastDateClick.time<350;
+ lastDateClick=doubleClick?null:{date,time:now};
+ selected=date;month=new Date(parseDate(selected).getFullYear(),parseDate(selected).getMonth(),1);render();
+ if(doubleClick){
+  const selectedDay=Array.from(document.querySelectorAll('#calendar [data-date]')).find(node=>node.dataset.date===date);
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+   selectedDay?.animate([{transform:'scale(1)'},{transform:'scale(.95)',offset:.4},{transform:'scale(1)'}],{duration:220,easing:'ease-out'});
+  }
+  openEvent();
+ }
+});
 $('#agenda').addEventListener('click',e=>{const b=e.target.closest('[data-event]');if(b)openEvent(b.dataset.event);});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.filter,'',false)));
@@ -214,7 +232,6 @@ monthPicker.addEventListener('click',e=>{
  else if(e.target===monthPicker){const r=monthPicker.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeMonthPicker();}
 });
 $('#next-month').addEventListener('click',()=>{month.setMonth(month.getMonth()+1);render();});
-$('#today').addEventListener('click',()=>{month=new Date(today.getFullYear(),today.getMonth(),1);selected=key;render();});
 $('#add-event').addEventListener('click',()=>openEvent());$('#add-selected').addEventListener('click',()=>openEvent());
 $('#close-dialog').addEventListener('click',()=>$('#event-dialog').close());
 function syncVisibility(){const f=$('#event-form').elements;f.visibility.disabled=false;f.visibility.options[0].textContent=f.type.value==='group'?'나만 보기 (그룹원은 항상 표시)':'나만 보기';f.visibility.options[1].textContent=f.type.value==='group'?'보이게 하기 (친구에게 공개)':'친구에게 공개';}
@@ -446,20 +463,31 @@ function renderCalendarWeeks(first,cells,matching){
 window.applySharedGroups(window.moaSharing.groups);
 
 function renderMobileMonth(first,cells,matching){
-  const limit=window.moaMobileSlots ?? 3;
+  const capacity=window.moaMobileSlots ?? 3;
+  const compact=!!window.moaCompactCalendar;
+  const laneHeight=compact?6:20;
+  const weeks=Array.from({length:cells/7},(_,week)=>{
+    const dates=Array.from({length:7},(_,i)=>{const d=new Date(first);d.setDate(d.getDate()+week*7+i);return dateKey(d);});
+    return {dates,segments:weekSegments(dates,matching)};
+  });
+  // One shared lane count keeps every date cell the same height.
+  const limit=compact?Math.max(0,...weeks.flatMap(({dates,segments})=>dates.map((k,i)=>{
+    const occupied=segments.filter(s=>s.start<=i&&s.end>=i);
+    const spanLanes=Math.max(0,...occupied.map(s=>s.lane+1));
+    const singles=matching.filter(e=>e.date===k&&eventEnd(e)===k).length;
+    return Math.max(spanLanes,occupied.length+singles);
+  }))):capacity;
   let html='';
-  for(let offset=0;offset<cells;offset+=7){
-    const dates=Array.from({length:7},(_,i)=>{const d=new Date(first);d.setDate(d.getDate()+offset+i);return dateKey(d);});
-    const segments=weekSegments(dates,matching);
+  for(const {dates,segments} of weeks){
     const shown=segments.filter(s=>s.lane<limit);
-    html+=`<div class="mobile-calendar-week" style="grid-template-rows:minmax(24px,32px) ${limit?`repeat(${limit},22px) `:''}minmax(0,1fr)">`;
+    html+=`<div class="mobile-calendar-week" style="${compact?`min-height:${24+limit*laneHeight}px;`:''}grid-template-rows:minmax(24px,${compact?24:28}px) ${limit?`repeat(${limit},${laneHeight}px) `:''}${compact?'':'16px '}minmax(0,1fr)">`;
     for(let i=0;i<7;i++){
       const k=dates[i],date=parseDate(k),daily=matching.filter(e=>occursOn(e,k));
       const occupied=new Set(shown.filter(s=>s.start<=i&&s.end>=i).map(s=>s.lane));
       const singles=daily.filter(e=>eventEnd(e)===e.date).sort((a,b)=>Number(b.allDay)-Number(a.allDay)||a.time.localeCompare(b.time));
       const free=Array.from({length:limit},(_,lane)=>lane).filter(lane=>!occupied.has(lane));
       const visible=singles.slice(0,free.length),hidden=daily.length-occupied.size-visible.length;
-      html+=`<button class="day mobile-day ${i===0?'is-sunday':i===6?'is-saturday':''} ${hidden?'has-overflow':''} ${date.getMonth()!==month.getMonth()?'other':''} ${k===selected?'selected':''} ${k===key?'is-today':''}" style="grid-column:${i+1};grid-row:1 / -1" data-date="${k}" aria-pressed="${k===selected}" aria-label="${k}, 일정 ${daily.length}개"><span class="day-number">${date.getDate()}</span>${hidden?`<span class="more-events">+${hidden}개</span>`:''}</button>`;
+      html+=`<button class="day mobile-day ${i===0?'is-sunday':i===6?'is-saturday':''} ${hidden?'has-overflow':''} ${date.getMonth()!==month.getMonth()?'other':''} ${k===selected?'selected':''} ${k===key?'is-today':''}" style="grid-column:${i+1};grid-row:1 / -1" data-date="${k}" aria-pressed="${k===selected}" aria-label="${k}, 일정 ${daily.length}개"><span class="day-number">${date.getDate()}</span></button>${hidden?`<span class="more-events day-overflow" style="grid-column:${i+1};grid-row:${limit+2}" aria-hidden="true">+${hidden}개</span>`:''}`;
       html+=visible.map((e,n)=>`<button type="button" class="event-chip ${e.type} single-event-button" data-span-event="${escapeHTML(e.id)}" style="grid-column:${i+1};grid-row:${free[n]+2};${e.type==='group'?groupColorStyle(groupById(e.group)):''}" aria-label="${escapeHTML(e.title+' · '+eventRange(e))}">${escapeHTML(e.title)}</button>`).join('');
     }
     html+=shown.map(({event:e,start,end,lane})=>`<button class="span-event ${e.type} ${e.date<dates[0]?'continues-before':''} ${eventEnd(e)>dates[6]?'continues-after':''}" data-span-event="${escapeHTML(e.id)}" style="grid-column:${start+1} / ${end+2};grid-row:${lane+2};${e.type==='group'?groupColorStyle(groupById(e.group)):''}" title="${escapeHTML(e.title+' · '+eventRange(e))}" aria-label="${escapeHTML(e.title+' · '+eventRange(e))}">${escapeHTML(e.title)}</button>`).join('');

@@ -9,19 +9,20 @@ export function setupPersonalTools(){
  const hobby=document.querySelector('.hobby-panel');
  const section=document.createElement('section');
  section.id='timetable-section';section.hidden=true;
- section.innerHTML=`<header class="tt-heading"><div><p class="eyebrow">A RHYTHM OF YOUR OWN</p><h2>나의 주간 시간표</h2><p class="subtle">매주 반복할 나만의 리듬을 계획해요.</p></div><button type="button" class="outline" id="tt-add">＋ 일정</button></header>
- <label class="tt-share"><input type="checkbox" id="tt-share"> 친구에게 시간표 공개</label><form class="tt-settings"><label>표시 시작<input name="start" type="time" step="3600" aria-label="표시 시작"></label><button class="outline" type="submit">적용</button></form>
+ section.innerHTML=`<header class="tt-heading"><h2>나의 주간 시간표</h2></header>
+ <div class="tt-toolbar"><form class="tt-settings"><label><span class="tt-setting-label">표시 시작</span><input name="start" type="time" step="3600" aria-label="표시 시작"></label><label><span class="tt-setting-label">표시 끝</span><select name="end" aria-label="표시 끝">${Array.from({length:24},(_,i)=>`<option value="${(i+1)*60}">${clock((i+1)*60)}</option>`).join('')}</select></label></form><label class="tt-share"><input type="checkbox" id="tt-share" aria-label="친구에게 시간표 공개"> 친구 공개</label></div>
+ <p class="tt-range-error form-error" role="alert" hidden></p>
  <details class="tt-outside" hidden><summary></summary><div></div></details>
  <div class="tt-scroll" tabindex="0" aria-label="주간 시간표, 빈 시간 칸을 선택하세요"><div class="tt-grid"></div></div>
  <p class="tt-help">빈 칸을 선택해 등록 · 블록을 선택해 수정 · 매주 반복되는 시간표</p>`;
  workspace.insertBefore(section,workspace.querySelector('.page-footer'));
  const settings=section.querySelector('.tt-settings');
  let settingsDirty=false;
- settings.addEventListener('change',()=>{settingsDirty=true;});
+ settings.addEventListener('change',()=>{settingsDirty=true;settings.requestSubmit();});
  const scroller=section.querySelector('.tt-scroll'),grid=section.querySelector('.tt-grid');
  const saveNotes=[hobby,section].map(parent=>{const note=document.createElement('p');note.className='personal-save-status';note.setAttribute('role','status');parent.append(note);return note;});
  document.addEventListener('moa-save-status',event=>{saveNotes.forEach(note=>{
-  note.textContent=event.detail.message;
+  note.textContent=event.detail.state==='saved'?'':event.detail.message;
   if(event.detail.state==='error'){const retry=document.createElement('button');retry.className='outline';retry.textContent='다시 저장';retry.onclick=()=>window.moaCalendarStore.retry();note.append(retry);}
  });});
  const dialog=document.createElement('dialog');dialog.id='tt-dialog';dialog.setAttribute('aria-labelledby','tt-dialog-title');
@@ -40,7 +41,7 @@ export function setupPersonalTools(){
  let editing=null,drag=null,suppressClick=0;
  const share=section.querySelector('#tt-share');
  share.addEventListener('change',()=>saveTable({...timetable(),visibility:share.checked?'friends':'private'}));
- const timetable=()=>({...defaultTimetable(),...data().timetable,end:1440,weekend:true});
+ const timetable=()=>({...defaultTimetable(),...data().timetable,end:data().timetable?.displayEnd??1440,weekend:true});
  function saveTable(next){api.update({timetable:next});}
  function openEntry(id=null,day=0,start=540,end=Math.min(start+60,1440)){
   const e=timetable().entries.find(e=>e.id===id);
@@ -52,7 +53,6 @@ export function setupPersonalTools(){
   fields.place.value=e?.place||'';fields.note.value=e?.note||'';fields.color.value=e?.color||'#bc8158';
   dialog.showModal();
  }
- section.querySelector('#tt-add').onclick=()=>openEntry();
  dialog.querySelectorAll('[data-dismiss]').forEach(button=>button.onclick=()=>dialog.close());
  fields.midnight.onchange=()=>{fields.end.disabled=fields.midnight.checked;if(fields.midnight.checked)fields.end.value='00:00';};
  form.addEventListener('input',e=>{if(e.target!==fields.allowOverlap){fields.allowOverlap.checked=false;error.hidden=true;overlapLabel.hidden=true;}});
@@ -70,9 +70,31 @@ export function setupPersonalTools(){
  });
  dialog.querySelector('#tt-delete').onclick=async()=>{if(!await window.moaConfirmDelete('이 시간표 일정을 삭제할까요?'))return;const next=timetable();saveTable({...next,entries:next.entries.filter(e=>e.id!==editing)});dialog.close();};
  settings.addEventListener('submit',e=>{
-  e.preventDefault();const start=minutes(settings.elements.start.value);
-  settingsDirty=false;saveTable({...timetable(),start});
+  e.preventDefault();const start=minutes(settings.elements.start.value),end=Number(settings.elements.end.value);
+  const message=section.querySelector('.tt-range-error');
+  if(!Number.isInteger(start)||start<0||start>1380||start%60!==0||!Number.isInteger(end)||end>1440||end%60!==0||end<=start){
+   message.textContent='표시 끝은 표시 시작보다 늦게 선택해 주세요.';message.hidden=false;
+   settings.elements.start.value=clock(timetable().start);settings.elements.end.value=String(timetable().end);settingsDirty=false;return;
+  }
+  message.hidden=true;settingsDirty=false;saveTable({...timetable(),start,end,displayEnd:end});
  });
+ // Native touch scrolling remains intact; mobile previews also support mouse dragging.
+ let scrollDrag=null;
+ scroller.addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='mouse'||e.button!==0||!matchMedia('(max-width:640px)').matches)return;
+  scrollDrag={id:e.pointerId,y:e.clientY,top:scroller.scrollTop,moved:false};
+ });
+ scroller.addEventListener('pointermove',e=>{
+  if(!scrollDrag||scrollDrag.id!==e.pointerId)return;
+  const delta=e.clientY-scrollDrag.y;
+  if(!scrollDrag.moved&&Math.abs(delta)<6)return;
+  scrollDrag.moved=true;e.preventDefault();scroller.setPointerCapture(e.pointerId);
+  scroller.scrollTop=scrollDrag.top-delta;
+ });
+ const stopScroll=()=>{if(scrollDrag?.moved)suppressClick=Date.now()+350;scrollDrag=null;};
+ scroller.addEventListener('pointerup',stopScroll);
+ scroller.addEventListener('pointercancel',stopScroll);
+
  grid.addEventListener('click',e=>{
   if(Date.now()<suppressClick)return;
   const block=e.target.closest('[data-entry]');if(block){openEntry(block.dataset.entry);return;}
@@ -103,7 +125,7 @@ export function setupPersonalTools(){
  section.querySelector('.tt-outside').addEventListener('click',e=>{const b=e.target.closest('[data-outside]');if(b)openEntry(b.dataset.outside);});
  function renderTable(){
   const table=timetable(),days=7;share.checked=table.visibility==='friends';
-  if(!settingsDirty)settings.elements.start.value=clock(table.start);
+  if(!settingsDirty){settings.elements.start.value=clock(table.start);settings.elements.end.value=String(table.end);}
   const slots=(table.end-table.start)/30,shown=table.entries.filter(e=>e.day<days&&e.end>table.start&&e.start<table.end);
   const placed=layoutEntries(shown),outside=table.entries.filter(e=>e.day>=days||e.start<table.start||e.end>table.end);
   const info=section.querySelector('.tt-outside');info.hidden=!outside.length;
@@ -111,14 +133,14 @@ export function setupPersonalTools(){
   info.querySelector('div').innerHTML=outside.map(e=>`<button class="outline" data-outside="${escape(e.id)}">${weekdays[e.day]} ${clock(e.start)}–${clock(e.end)} · ${escape(e.title)}</button>`).join('');
   grid.style.setProperty('--tt-days',days);
   let html='<div class="tt-corner" aria-hidden="true"></div>'+weekdays.slice(0,days).map(d=>`<div class="tt-day-heading">${d}</div>`).join('');
-  html+='<div class="tt-axis">'+Array.from({length:slots},(_,i)=>`<div>${i%2===0?clock(table.start+i*30):''}</div>`).join('')+'</div>';
+  html+='<div class="tt-axis">'+Array.from({length:slots},(_,i)=>`<div>${i%2===0?`<span class="tt-hour-label">${clock(table.start+i*30)}</span>`:''}</div>`).join('')+'</div>';
   for(let day=0;day<days;day++){
    html+='<div class="tt-day-column">';
    html+=Array.from({length:slots},(_,i)=>`<button type="button" class="tt-slot" data-day="${day}" data-slot="${table.start+i*30}" data-index="${i}" aria-label="${weekdays[day]}요일 ${clock(table.start+i*30)} 일정 추가"></button>`).join('');
    html+=placed.filter(e=>e.day===day).map(e=>{
     const start=Math.max(e.start,table.start),end=Math.min(e.end,table.end),height=end-start;
     const full=`${e.title} · ${weekdays[e.day]}요일 ${clock(e.start)}–${clock(e.end)}${e.place?' · '+e.place:''}`;
-    return `<button type="button" class="tt-block ${height<42?'tt-compact':''}" data-entry="${escape(e.id)}" aria-label="${escape(full)}" title="${escape(full)}" style="top:${start-table.start}px;height:${height}px;left:calc(${e.column/e.columns*100}% + 2px);width:calc(${100/e.columns}% - 4px);--block-color:${escape(e.color)}"><strong>${escape(e.title)}</strong><small>${clock(e.start)}–${clock(e.end)}</small>${height>=78&&e.place?'<span>'+escape(e.place)+'</span>':''}</button>`;
+    return `<button type="button" class="tt-block ${height<42?'tt-compact':''}" data-entry="${escape(e.id)}" aria-label="${escape(full)}" title="${escape(full)}" style="top:calc(${start-table.start} * var(--tt-minute-size,1px));height:calc(${height} * var(--tt-minute-size,1px));left:calc(${e.column/e.columns*100}% + 2px);width:calc(${100/e.columns}% - 4px);--block-color:${escape(e.color)}"><strong>${escape(e.title)}</strong><small>${clock(e.start)}–${clock(e.end)}</small>${height>=78&&e.place?'<span>'+escape(e.place)+'</span>':''}</button>`;
    }).join('');
    html+='</div>';
   }
@@ -134,7 +156,8 @@ export function setupPersonalTools(){
   scroller.style.height=Math.max(80,innerHeight-scroller.getBoundingClientRect().top-tail-Math.max(12,safe))+'px';
  }
  new ResizeObserver(fitTable).observe(section.querySelector('.tt-heading'));
- new ResizeObserver(fitTable).observe(section.querySelector('.tt-settings'));
+ new ResizeObserver(fitTable).observe(section.querySelector('.tt-toolbar'));
+ new ResizeObserver(fitTable).observe(section.querySelector('.tt-range-error'));
  new ResizeObserver(fitTable).observe(section.querySelector('.tt-outside'));
  new ResizeObserver(fitTable).observe(section.querySelector('.personal-save-status'));
  window.addEventListener('resize',fitTable);

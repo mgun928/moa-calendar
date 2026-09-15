@@ -1080,3 +1080,11 @@ dialog.moa-select-picker{width:min(380px,calc(100% - 24px));max-height:75dvh;ove
 /* Overflow has its own row after events, separate from the date number. */
 #calendar .day-overflow{position:relative;z-index:2;align-self:center;justify-self:center;max-width:100%;height:16px;line-height:16px;padding:0 2px;font-size:10px;font-weight:700;color:var(--muted);white-space:nowrap;pointer-events:none}
 #calendar .mobile-day.has-overflow .day-number{align-self:center}
+
+@media(max-width:640px){
+ body.calendar-details-open #daily-tools{transition:transform 200ms cubic-bezier(.2,.7,.25,1),height 220ms cubic-bezier(.2,.7,.25,1),max-height 220ms cubic-bezier(.2,.7,.25,1)}
+ body.calendar-details-full #daily-tools{height:calc(100dvh - max(8px,env(safe-area-inset-top)));max-height:calc(100dvh - max(8px,env(safe-area-inset-top)));z-index:60}
+ body.calendar-details-full .mobile-quick-add{z-index:61}
+ body.calendar-details-open #daily-tools.is-dragging{transition:none}
+}
+@media(prefers-reduced-motion:reduce){body.calendar-details-open #daily-tools{transition:none}}

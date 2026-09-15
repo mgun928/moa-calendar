@@ -6,13 +6,13 @@ import {applyAccent} from './accent.js?v=dark-accent-6';
 import {setupTimePicker} from './time-picker.js?v=scroll-fix-3';
 import {confirmDelete} from './confirm-delete.js';
 window.moaConfirmDelete=confirmDelete;
-import { setupPersonalTools } from './personal-tools.js?v=calendar-overflow-row-1';
+import { setupPersonalTools } from './personal-tools.js?v=sheet-expand-1';
 import { setupFriends } from './friends.js?v=full-profile-3';
 import { authReady } from './auth.js';
 import { openCalendarStore } from './calendar-store.js';
 import { setupGroupSharing } from './group-sharing.js';
 import { setupProfileMenu } from './profile-menu.js';
-import { setupMobileDashboard } from './mobile-dashboard.js?v=calendar-overflow-row-1';
+import { setupMobileDashboard } from './mobile-dashboard.js?v=sheet-expand-1';
 
 
 async function loadScript(src) {
@@ -71,7 +71,7 @@ try {
       if (window.moaCalendarStore.hasPending()) { event.preventDefault(); event.returnValue = ''; }
     });
     window.moaSharing = await setupGroupSharing(client);
-    await loadScript('dashboard.js?v=calendar-overflow-row-1');
+    await loadScript('dashboard.js?v=sheet-expand-1');
     window.moaFriends=setupFriends(client,data.user.id);
     setupPersonalTools();
     setupTimePicker();

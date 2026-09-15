@@ -1,4 +1,4 @@
-import {setupEdgePanel} from './mobile-edge-panel.js?v=sync-close-1';
+import {setupEdgePanel} from './mobile-edge-panel.js?v=sheet-expand-1';
 
 export function setupMobileDashboard(){
  const media=matchMedia('(max-width:640px)');
@@ -197,9 +197,16 @@ export function setupMobileDashboard(){
   if(tool==='friends')void window.moaFriends.refresh();
  }
  sheet.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>selectTool(b.dataset.tool)));
- sheet.addEventListener('close',()=>{if(sheet.open)return;document.body.classList.remove('calendar-details-open','calendar-details-closing');layout();});
+ sheet.addEventListener('close',()=>{if(sheet.open)return;document.body.classList.remove('calendar-details-open','calendar-details-closing','calendar-details-full');layout();});
 
- const bottomPanel=setupEdgePanel({dialog:sheet,handle:bottomHandle,grip:bottomGrip,dragSurface:sheet.querySelector('.bottom-drawer-tabs'),direction:-1,modal:()=>!document.body.classList.contains('calendar-details-open'),onOpen:()=>{dismissFriendsTip();document.body.classList.remove('calendar-details-closing');layout();},onCloseStart:()=>{document.body.classList.add('calendar-details-closing');layout();},beforeOpen:()=>{
+ function resizeSheetBySwipe(dy){
+  if(!media.matches||!document.body.classList.contains('calendar-details-open'))return false;
+  const full=document.body.classList.contains('calendar-details-full');
+  if(dy< -48&&!full){document.body.classList.add('calendar-details-full');return true;}
+  if(dy>48&&full){document.body.classList.remove('calendar-details-full');return true;}
+  return false;
+ }
+ const bottomPanel=setupEdgePanel({dialog:sheet,handle:bottomHandle,grip:bottomGrip,dragSurface:sheet.querySelector('.bottom-drawer-tabs'),onSwipe:resizeSheetBySwipe,direction:-1,modal:()=>!document.body.classList.contains('calendar-details-open'),onOpen:()=>{dismissFriendsTip();document.body.classList.remove('calendar-details-closing');layout();},onCloseStart:()=>{document.body.classList.add('calendar-details-closing');layout();},beforeOpen:()=>{
   panels.forEach(p=>p.close(true));selectTool('agenda');
   document.body.classList.toggle('calendar-details-open',media.matches&&panel.getClientRects().length>0);layout();
  }});
@@ -228,12 +235,14 @@ export function setupMobileDashboard(){
  function finishDismiss(start,x,y){
   if(!start||!sheet.open)return false;
   const dx=x-start.x,dy=y-start.y;
-  if(dy<48||dy<Math.abs(dx)*1.4)return false;
+  if(Math.abs(dy)<48||Math.abs(dy)<Math.abs(dx)*1.4||start.scrolled)return false;
+  const resized=resizeSheetBySwipe(dy);
+  if(!resized&&dy<0)return false;
   dismissClickUntil=monthClickUntil=Date.now()+450;monthSwipe=null;calendarTouch=null;
-  bottomPanel.close();return true;
+  if(!resized)bottomPanel.close();return true;
  }
  document.addEventListener('pointerdown',e=>{
-  dismissPointer=e.isPrimary&&e.button===0&&canDismiss(e.target)?{id:e.pointerId,x:e.clientX,y:e.clientY}:null;
+  dismissPointer=e.isPrimary&&e.button===0&&canDismiss(e.target)?{id:e.pointerId,x:e.clientX,y:e.clientY,scrolled:sheet.contains(e.target)&&contents.scrollTop>0}:null;
  },true);
  document.addEventListener('pointerup',e=>{
   const start=dismissPointer;dismissPointer=null;
@@ -241,7 +250,7 @@ export function setupMobileDashboard(){
  },true);
  document.addEventListener('pointercancel',()=>{dismissPointer=null;},true);
  document.addEventListener('touchstart',e=>{
-  const touch=e.touches[0];dismissTouch=e.touches.length===1&&canDismiss(e.target)?{x:touch.clientX,y:touch.clientY}:null;
+  const touch=e.touches[0];dismissTouch=e.touches.length===1&&canDismiss(e.target)?{x:touch.clientX,y:touch.clientY,scrolled:sheet.contains(e.target)&&contents.scrollTop>0}:null;
  },{capture:true,passive:true});
  document.addEventListener('touchend',e=>{
   const start=dismissTouch;dismissTouch=null;const touch=e.changedTouches[0];

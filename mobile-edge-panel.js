@@ -7,7 +7,7 @@ export function shouldOpen(startOpen, distance, height){
  return startOpen?distance>height-threshold:distance>=threshold;
 }
 
-export function setupEdgePanel({dialog,handle,grip,direction,axis="y",beforeOpen,onOpen,onCloseStart,edgeTarget,modal=()=>true,dragSurface}){
+export function setupEdgePanel({dialog,handle,grip,direction,axis="y",beforeOpen,onOpen,onCloseStart,edgeTarget,modal=()=>true,dragSurface,onSwipe}){
  const size=()=>dialog.getBoundingClientRect()[axis==="x"?"width":"height"];
  const coordinate=event=>axis==="x"?event.clientX:event.clientY;
  let progress=0,height=0,drag=null,timer=0,settled=false,suppressUntil=0;
@@ -94,6 +94,7 @@ export function setupEdgePanel({dialog,handle,grip,direction,axis="y",beforeOpen
   if(!drag||event.pointerId!==drag.id)return;
   const state=drag;drag=null;suppressUntil=Date.now()+400;
   if(dialog.hasPointerCapture(event.pointerId))dialog.releasePointerCapture(event.pointerId);
+  if(!cancelled&&state.fromOpen&&state.moved&&onSwipe?.(coordinate(event)-state.y)){snap(true);return;}
   snap(cancelled?state.fromOpen:state.moved?shouldOpen(state.fromOpen,progress,height):!state.fromOpen);
  }
  dialog.addEventListener('pointerup',event=>release(event));
